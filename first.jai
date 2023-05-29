@@ -4,34 +4,42 @@ RUN\ GAME :: true; // I just have to do this even though it is horrible for sear
 
 
 
-build_Game :: () -> bool
+build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 {
-	workspace_game := Jai.compiler_create_workspace("Ilpigh Uzco");
-	options\ _game := Jai.get_build_options(workspace_game);
+	build_name := sprint("Platform %", os);
+	exec_name  := sprint("IU_%",os);
+
+	platform_modules := sprint("srctree/platform/%/", os);
+	modules          := "srctree/modules";
+
+
+	workspace_platform := Jai.compiler_create_workspace(build_name);
+	options\ _platform := Jai.get_build_options(workspace_platform);
 	
 	
-	options_game.    text_output_flags = xx 2;
+	options_platform.    text_output_flags = xx 2;
 
-	options_game.    output_type = .EXECUTABLE;
+	options_platform.    output_type = .EXECUTABLE;
 
-	options_game.    output_executable_name = "Ilpigh Uzco";
+	options_platform.    output_executable_name = exec_name;
 	
-	options_game.    output_path = "binaries";
+	options_platform.    output_path = "binaries";
 
-	options_game.    dead_code_elimination = .NONE;
+	options_platform.    dead_code_elimination = .NONE;
 
 	import : [..] string;
-	array_add(*import, ..options_game.import_path);
-	array_add(*import, "srctree/modules");
-	options_game.import_path = import; 
+	array_add(*import, ..options_platform.import_path); // We need this for RuntimeSupport
+	array_add(*import, platform_modules);
+	array_add(*import,          modules);
+	options_platform.import_path = import; 
 	
-	Jai.set_build_options(options_game    , workspace_game);
+	Jai.set_build_options(options_platform    , workspace_platform);
 	
 
 
 
-	Jai.compiler_begin_intercept(workspace_game);
-	Jai.add_build_file("srctree/main.jai", workspace_game);
+	Jai.compiler_begin_intercept(workspace_platform);
+	Jai.add_build_file("srctree/platform/platform_main.jai", workspace_platform);
 
 	succeeded_in_the_games_industry : bool = true;
 	while true
@@ -43,7 +51,7 @@ build_Game :: () -> bool
 			break;
 		}
 	}
-	Jai.compiler_end_intercept(workspace_game);
+	Jai.compiler_end_intercept(workspace_platform);
 	return succeeded_in_the_games_industry;
 }
 
