@@ -22,6 +22,7 @@ BackBuffer :: struct
 Platform :: struct 
 {
 	window : Window;
+	exit   : int; @Atomic;
 	general_heap  : Allocator;
 	start_Thread  : ((*void) -> int #c_call, *void) -> Thread;
 	stop\_Thread  : (Thread);

@@ -14,6 +14,7 @@ Window_Info :: struct
 	wnd_Proc       : *void;
 	device_context : HDC;
 	window_context : Context;
+	exit           : bool;
 };
 
 active_windows : [..] Window_Info;
@@ -170,10 +171,34 @@ get_BackBuffer :: (window : *Window_Info) -> BackBuffer
 	bb.size = window.bitmap.size;
 	bb.stride = window.bitmap.stride_in_bytes/size_of(Pixel);
 	bb.data = xx window.bitmap.data.data;
-	print("Bruh %\n", bb.stride);
 
 	return bb;
 }
+
+
+
+
+handle_Events :: (window : *Window_Info) -> (should_exit : bool)
+{
+	should_exit := false;
+	msg : MSG;
+	while PeekMessageW(*msg, window.handle, 0, 0, PM_REMOVE)
+	{
+		TranslateMessage(*msg);
+		DispatchMessageW(*msg) <= 0;
+	}
+	print("After handle events %\n", should_exit);
+	should_exit = window.exit;
+	if should_exit print("we should exit\n");
+	return should_exit;
+}
+
+
+
+
+
+
+
 
 #scope_file
 
@@ -250,7 +275,9 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 
 		case WM_DESTROY; #through;
 		case WM_CLOSE;
-			print("%\n", u_message);
+			print("Close message %\n", u_message);
+			window_info.exit = true;
+			result = DefWindowProcW(window_handle, u_message, wparam, lparam);
 		
 		case WM_ACTIVATEAPP;
 		
@@ -267,7 +294,9 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 
 
 gdi      :: #system_library "Gdi32";
-user32   :: #system_library "user32";
+user32   :: #system_library "User32";
+
+
 PAINTSTRUCT :: struct {
 	hdc    : HDC;
 	fErase : BOOL;

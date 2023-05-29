@@ -8,19 +8,29 @@ main :: ()
 	platform_context.stop\_Thread  = stop\_Thread;
 	platform_context.update_Window = xx update_Window;
 	platform_context.get_BackBuffer = xx get_BackBuffer;
-
-
 	platform_context.window = xx create_Window("Ilpigh Uzco");
 
 	game := load_Game_Code(Game_DLL_Name);
 
-	game(*platform_context);
+	start_Thread(xx game, *platform_context);
 	
-	// Other stuff for input and networking and event loops
-
 	while true
 	{
-		// Do event loop
+		// TODO(Qwendo): here do we update the input?
+		should_exit := handle_Events(xx platform_context.window);
+		if atomic_read(*platform_context.exit) == 1
+		{
+			print("We exited the game thread???\n");
+			break;
+		}
+		if should_exit 
+		{
+			atomic_write(*platform_context.exit, 1);	
+			break;
+		}
+	}
+	while atomic_read(*platform_context.exit) == 1
+	{
 	}
 }
 
@@ -41,5 +51,6 @@ load_Game_Code :: ($dll_name : string) -> ENTRY_FUNCTION
 
 #import "platform";
 #import "Basic";
+#import "Atomics";
 
 //#run main();

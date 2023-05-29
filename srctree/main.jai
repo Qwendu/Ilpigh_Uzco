@@ -6,14 +6,26 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 {
 	if !platform_init return;
 	platform = platform_init;
-
 	c : Context;
 	c.allocator = platform.general_heap;
 	push_context,defer_pop c;
 
-	args := Draw_Args.{0, platform, *context};
+	
+	draw_thread_exit : int = 0;
+	args := Draw_Args.{*draw_thread_exit, platform, *context};
 	platform.start_Thread(xx draw, *args);
+
+	while atomic_read(*platform.exit) == 0
+	{
+	}
+
+	atomic_write(*draw_thread_exit, 1);
+	while atomic_read(*draw_thread_exit) != 0
+	{}
+	
+	atomic_write(*platform.exit, 0);
 }
+
 
 platform : *Platform;
 
@@ -21,16 +33,18 @@ platform : *Platform;
 
 Draw_Args :: struct
 {
-	exit: int;
+	exit: *int;
 	plt : *Platform;
 	c   : *Context;
-}
-draw :: (data :*Draw_Args) #c_call
-{
-	plt : *Platform = data.plt;
-	push_context,defer_pop data.c;
+};
 
-	while !atomic_read(*data.exit)
+
+draw :: (args :*Draw_Args) #c_call
+{
+	plt : *Platform = args.plt;
+	push_context,defer_pop args.c;
+
+	while atomic_read(args.exit) == 0
 	{
 		bb := plt.get_BackBuffer(platform.window);
 		for y : 0..bb.size.y-1
@@ -42,6 +56,7 @@ draw :: (data :*Draw_Args) #c_call
 		}
 		plt.update_Window(platform.window);
 	}
+	atomic_write(args.exit, 0);
 }
 
 #import "Basic";
