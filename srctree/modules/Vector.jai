@@ -15,6 +15,8 @@ Vector :: struct(dim : int, T : Type)
 
 
 int2   :: Vector(2, int);
+float2 :: Vector(2, float);
+int3   :: Vector(3, int);
 float3 :: Vector(3, float);
 
 dot :: (a : $V/Vector, b : V) -> V.T

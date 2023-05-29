@@ -1,5 +1,4 @@
-#load "platform/interface.jai";
-
+#import "Common";
 
 #program_export
 game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
@@ -31,34 +30,8 @@ platform : *Platform;
 
 
 
-Draw_Args :: struct
-{
-	exit: *int;
-	plt : *Platform;
-	c   : *Context;
-};
 
-
-draw :: (args :*Draw_Args) #c_call
-{
-	plt : *Platform = args.plt;
-	push_context,defer_pop args.c;
-
-	while atomic_read(args.exit) == 0
-	{
-		bb := plt.get_BackBuffer(platform.window);
-		for y : 0..bb.size.y-1
-		{
-			for x : 0..bb.size.x-1
-			{
-				bb.data[y * bb.stride + x] = .{code=0xFFA00000};
-			}
-		}
-		plt.update_Window(platform.window);
-	}
-	atomic_write(args.exit, 0);
-}
-
+#import,file "Graphics.jai";
 #import "Basic";
 #import "Atomics";
 
