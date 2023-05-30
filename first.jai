@@ -19,7 +19,7 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 	options\ _game     := Jai.get_build_options(workspace_game);
 	
 	{
-		options_platform.text_output_flags = xx 2;
+		options_platform.text_output_flags = xx 0;
 		options_platform.output_type = .EXECUTABLE;
 		options_platform.output_executable_name = exec_name;
 		options_platform.output_path = "binaries";
@@ -35,7 +35,7 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 	}
 
 	{
-		options_game.text_output_flags = xx 2;
+		options_game.text_output_flags = xx 0;
 		options_game.output_type = .DYNAMIC_LIBRARY;
 		options_game.output_executable_name = game_name;
 		options_game.output_path = "binaries";
@@ -101,6 +101,7 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 	Jai.set_build_options_dc(.{do_output = false});
 
 	succ := build_Game();
+	if succ print("Built game!\n");
 	if(succ && RUN\ GAME)
 	{
 

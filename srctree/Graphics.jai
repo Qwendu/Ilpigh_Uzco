@@ -6,6 +6,7 @@ Draw_Args :: struct
 	exit: *int;
 	plt : *Platform;
 	c   : *Context;
+	
 };
 
 
@@ -24,7 +25,6 @@ draw :: (args :*Draw_Args) #c_call
 		bb := plt.get_BackBuffer(plt.window);
 		for triangle : mesh.triangles
 		{
-			
 			for y : 0..bb.size.y-1
 			{
 				for x : 0..bb.size.x-1
@@ -33,8 +33,11 @@ draw :: (args :*Draw_Args) #c_call
 				}
 			}
 		}
+		
+		
 		plt.update_Window(plt.window);
 	}
 	atomic_write(args.exit, 0);
 }
 #import "Atomics";
+#import "AsyncBuffer";

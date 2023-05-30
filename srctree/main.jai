@@ -1,5 +1,6 @@
 #import "Common";
 
+
 #program_export
 game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 {
@@ -13,6 +14,8 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	draw_thread_exit : int = 0;
 	args := Draw_Args.{*draw_thread_exit, platform, *context};
 	platform.start_Thread(xx draw, *args);
+
+
 
 	while atomic_read(*platform.exit) == 0
 	{
