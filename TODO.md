@@ -10,3 +10,4 @@
 	- [ ] Triangle Rasterization
 	- [ ] Jai Shaders
 	- [ ] Font Rendering
+- [ ] Add custom context for the platform layer
