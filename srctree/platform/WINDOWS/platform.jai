@@ -52,7 +52,7 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 			log_error("Failed to register window class %\n", main_window.window_class);
 			return null;
 		}
-		style := WS_OVERLAPPEDWINDOW;//& ~WS_SIZEBOX;
+		style := WS_OVERLAPPEDWINDOW & ~WS_SIZEBOX;
 		
 		main_window.display_name = sprint("%\0", display_name); 
 		rect : RECT;
