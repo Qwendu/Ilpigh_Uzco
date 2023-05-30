@@ -24,10 +24,10 @@ Platform :: struct
 	window : Window;
 	exit   : int; @Atomic;
 	general_heap  : Allocator;
-	start_Thread  : ((*void) -> int #c_call, *void) -> Thread;
-	stop\_Thread  : (Thread);
-	update_Window : (Window);
-	get_BackBuffer : (Window) -> BackBuffer;
+	start_Thread  : ((*void) -> int #c_call, *void) -> Thread #c_call;
+	stop\_Thread  : (Thread) #c_call;
+	update_Window : (Window) #c_call;
+	get_BackBuffer : (Window) -> BackBuffer #c_call;
 };
 
 
