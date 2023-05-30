@@ -1,13 +1,13 @@
 #scope_export
 
 ASSERT_VALID_STATE :: true;
-PRINT_VALID_STATES :: true;
+PRINT_VALID_STATES :: false;
 
 
 
-AsyncBuffer :: struct(Element : Type)
+Async_Buffer :: struct(Element : Type)
 {
-	using pointers : PointersStruct; 
+	using pointers : Pointers_Struct; 
 	// @Robustness @Efficiency We should probably pad for the cache line size in the Pointer Struct
 	Padded_Element :: struct 
 	{
@@ -17,42 +17,60 @@ AsyncBuffer :: struct(Element : Type)
 	buffers : [3] Padded_Element;
 }
 
-
-read :: (buffer : *$Buffer/AsyncBuffer) -> *Buffer.Element
+Async_Buffer_End :: struct(Element : Type, side : enum {WRITER;READER;})
 {
-	#if ASSERT_VALID_STATE  assert(valid(buffer.pointers), "We did not get a valid state as input!");
-	old := atomic_read(*buffer.pointers.cr_cw_nr);
-	while true 
-	{
-		next_pointers := next_read(PointersStruct.{cr_cw_nr = old});
-		success : bool;
-		success, old = compare_and_swap(*buffer.pointers.cr_cw_nr, old, next_pointers.cr_cw_nr);
-		if success  break;
-	}
-	#if ASSERT_VALID_STATE  assert(valid(buffer.pointers), "We did not result in a valid state");
-	return *buffer.buffers[atomic_read(*buffer.pointers).next_read].element;
+	ptr : *Async_Buffer(Element);
+};
+
+get_Ends :: (buf : *$Buffer/Async_Buffer) -> (reader : Async_Buffer_End(Buffer.Element, .READER), writer : Async_Buffer_End(Buffer.Element, .WRITER))
+{
+	return .{buf}, .{buf};
 }
 
-write :: (buffer : *$Buffer/AsyncBuffer) -> *Buffer.Element
+
+get_Read_Pointer :: (end : $Buffer/Async_Buffer_End) -> *Buffer.Element
 {
-	#if ASSERT_VALID_STATE  assert(valid(buffer.pointers), "We did not get a valid state as input!");
+	#if Buffer.side == .READER
+	{
+		buffer := end.ptr;
+		old := atomic_read(*buffer.pointers.cr_cw_nr);
+		#if ASSERT_VALID_STATE  assert(valid(Pointers_Struct.{cr_cw_nr = old})); // @HeisenBug
+		while true 
+		{
+			next_pointers := next_read(Pointers_Struct.{cr_cw_nr = old});
+			success : bool;
+			success, old = compare_and_swap(*buffer.pointers.cr_cw_nr, old, next_pointers.cr_cw_nr);
+			if success  break;
+		}
+		#if ASSERT_VALID_STATE  assert(valid(Pointers_Struct.{cr_cw_nr = atomic_read(*buffer.pointers.cr_cw_nr)}));
+		return *buffer.buffers[atomic_read(*buffer.pointers).next_read].element;
+	}else{
+		// IF we are the writer then we do not advance in order to read!
+		return *buffer.buffers[atomic_read(*buffer.pointers).next_read].element;
+	}
+}
+
+get_Write_Pointer :: (end : $Buffer/Async_Buffer_End) -> *Buffer.Element
+{
+	#assert Buffer.side == .WRITER;
+	buffer := end.ptr;
 	old := atomic_read(*buffer.pointers.cr_cw_nr);
+	#if ASSERT_VALID_STATE  assert(valid(Pointers_Struct.{cr_cw_nr = old}));
 	while true 
 	{
-		next_pointers := next_write(PointersStruct.{cr_cw_nr = old});
+		next_pointers := next_write(Pointers_Struct.{cr_cw_nr = old});
 		success : bool;
 		success, old = compare_and_swap(*buffer.pointers.cr_cw_nr, old, next_pointers.cr_cw_nr);
 		if success  break;
 	}
-	if !valid(buffer.pointers)  print("buffer.pointers = %\n", buffer.pointers);
-	#if ASSERT_VALID_STATE  assert(valid(buffer.pointers), "We did not result in a valid state");
+	#if ASSERT_VALID_STATE  assert(valid(Pointers_Struct.{cr_cw_nr = atomic_read(*buffer.pointers.cr_cw_nr)}));
 	return *buffer.buffers[atomic_read(*buffer.pointers).next_read].element;
 }
 
 #scope_file
 
 
-PointersStruct :: struct
+Pointers_Struct :: struct
 {
 	current_read  : u8 = 0;
 	current_write : u8 = 1;
@@ -60,10 +78,10 @@ PointersStruct :: struct
 	#place current_read;
 	cr_cw_nr      : u32 = ---; @Atomic
 };
-#assert size_of(PointersStruct) == 4;
+#assert size_of(Pointers_Struct) == 4;
 
 
-next_read :: (pointers : PointersStruct) -> PointersStruct
+next_read :: (pointers : Pointers_Struct) -> Pointers_Struct
 {
 	res := pointers;
 	using pointers;
@@ -74,7 +92,7 @@ next_read :: (pointers : PointersStruct) -> PointersStruct
 	return res;
 }
 
-next_write :: (pointers : PointersStruct) -> PointersStruct
+next_write :: (pointers : Pointers_Struct) -> Pointers_Struct
 {
 	res := pointers;
 	using pointers;
@@ -98,12 +116,13 @@ next_write :: (pointers : PointersStruct) -> PointersStruct
 	return res;
 }
 
-#if ASSERT_VALID_STATE
+#if PRINT_VALID_STATES
 {
 	#run 
 	{
-		a : AsyncBuffer([100] int);
-		possible_states : [3 * 3 * 3] PointersStruct;
+		buf : Async_Buffer(int);
+		reader, writer := get_Ends(*buf);
+		possible_states : [3 * 3 * 3] Pointers_Struct;
 		for cr:0..2
 		{
 			for cw: 0..2
@@ -125,10 +144,10 @@ next_write :: (pointers : PointersStruct) -> PointersStruct
 			before := it;
 			validity := valid(it);
 			if !validity continue;
-			a.pointers = it;
-			read(*a);
-			validity_after_read := valid(a.pointers);
-			#if PRINT_VALID_STATES  print("read(%) -> % %\n", before, a.pointers, ifx validity_after_read then "Valid" else "INVALID");
+			buf.pointers = it;
+			get_Read_Pointer(reader);
+			validity_after_read := valid(buf.pointers);
+			#if PRINT_VALID_STATES  print("read(%) -> % %\n", before, buf.pointers, ifx validity_after_read then "Valid" else "INVALID");
 		}
 
 		#if PRINT_VALID_STATES  print("All Atomic writes\n");
@@ -137,16 +156,16 @@ next_write :: (pointers : PointersStruct) -> PointersStruct
 			before := it;
 			validity := valid(it);
 			if !validity continue;
-			a.pointers = it;
-			write(*a);
-			validity_after_read := valid(a.pointers);
-			#if PRINT_VALID_STATES  print("write(%) -> % %\n", before, a.pointers, ifx validity_after_read then "Valid" else "INVALID");
+			buf.pointers = it;
+			get_Write_Pointer(writer);
+			validity_after_read := valid(buf.pointers);
+			#if PRINT_VALID_STATES  print("write(%) -> % %\n", before, buf.pointers, ifx validity_after_read then "Valid" else "INVALID");
 		}
 		
 	}
 }
 
-valid :: (v : PointersStruct) -> bool
+valid :: (v : Pointers_Struct) -> bool
 {
 	values_are_in_range := true;
 	values_are_in_range &= 
@@ -162,7 +181,13 @@ valid :: (v : PointersStruct) -> bool
 		|| v.next_read == 1
 		|| v.next_read == 2;
 
-	return v.current_read != v.current_write && v.current_write != v.next_read && values_are_in_range;
+	#if !PRINT_VALID_STATES  assert(values_are_in_range, sprint("Values are not in range %\n", v));
+	cur_read_diff := v.current_read != v.current_write;
+	#if !PRINT_VALID_STATES  assert(cur_read_diff, sprint("current_read (%) != current_write (%) does not hold", v.current_read, v.current_write));
+	nex_read_diff := v.next_read != v.current_write;
+	#if !PRINT_VALID_STATES  assert(nex_read_diff, sprint("next_read (%) != current_write (%) does not hold"   , v.next_read,    v.current_write));
+
+	return  cur_read_diff && nex_read_diff && values_are_in_range;
 }
 
 #import "Atomics";
