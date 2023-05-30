@@ -15,8 +15,10 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 
 	workspace_platform := Jai.compiler_create_workspace(build_name);
 	options\ _platform := Jai.get_build_options(workspace_platform);
+	//options_platform.backend = .X64;
 	workspace_game     := Jai.compiler_create_workspace(game_name);
 	options\ _game     := Jai.get_build_options(workspace_game);
+	//options_game.backend = .X64;
 	
 	{
 		options_platform.text_output_flags = xx 0;
@@ -25,11 +27,13 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 		options_platform.output_path = "binaries";
 		options_platform.dead_code_elimination = .NONE;
 
+
 		import : [..] string;
 		array_add(*import, ..options_platform.import_path); // We need this for RuntimeSupport
 		array_add(*import, platform_modules);
 		array_add(*import,          modules);
 		options_platform.import_path = import; 
+		Jai.set_optimization(*options_platform, .VERY_DEBUG);
 
 		Jai.set_build_options(options_platform    , workspace_platform);
 	}
@@ -40,6 +44,8 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 		options_game.output_executable_name = game_name;
 		options_game.output_path = "binaries";
 		options_game.dead_code_elimination = .NONE;
+
+		Jai.set_optimization(*options_game, .VERY_DEBUG);
 
 		import : [..] string;
 		array_add(*import, ..options_platform.import_path); // We need this for RuntimeSupport
