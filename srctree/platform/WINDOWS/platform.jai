@@ -21,7 +21,7 @@ active_windows : [..] Window_Info;
 active_threads : [..] Thread_Info;
 
 
-create_Window :: (display_name : string) -> *Window_Info #must
+create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 {
 	//
 	// Window Creation
@@ -30,8 +30,6 @@ create_Window :: (display_name : string) -> *Window_Info #must
 	main_window : *Window_Info = array_add(*active_windows);
 	main_window.window_context = c;
 	{
-		main_window.size = .{300, 300};
-
 		main_window.class_name = sprint("WC_%\0", display_name);
 		main_window.module     = GetModuleHandleW(null);
 		main_window.wnd_Proc   = cast(*void)window_Proc;
@@ -54,18 +52,28 @@ create_Window :: (display_name : string) -> *Window_Info #must
 			log_error("Failed to register window class %\n", main_window.window_class);
 			return null;
 		}
-		style := WS_VISIBLE | WS_SYSMENU;
+		style := WS_OVERLAPPEDWINDOW;//& ~WS_SIZEBOX;
 		
 		main_window.display_name = sprint("%\0", display_name); 
+		rect : RECT;
+		rect.top = 0;
+		rect.left = 0;
+		rect.right  = xx size.x;
+		rect.bottom = xx size.y;
+		extended_style : int = 0;
+		AdjustWindowRectEx(*rect, xx style, 0, xx extended_style);
+		print("Adjusted rect %\n", rect);
+		main_window.size = .{rect.right - rect.left, rect.bottom - rect.top};
+		print("%\n", main_window.size);
 
 		main_window.handle = CreateWindowExW
 		(
-			   dwExStyle     = 0
+			   dwExStyle     = xx extended_style
 			,  lpClassName   = utf8_to_wide(main_window.class_name)
 			,  lpWindowName  = utf8_to_wide(main_window.display_name)
 			,  dwStyle       = xx style
-			,  x = 0
-			,  y = 0
+			,  x = CW_USEDEFAULT
+			,  y = CW_USEDEFAULT
 			,  nWidth  = xx main_window.size.x
 			,  nHeight = xx main_window.size.y
 			,  hwndParent = null
@@ -77,18 +85,20 @@ create_Window :: (display_name : string) -> *Window_Info #must
 		main_window.device_context = GetDC(main_window.handle);
 		update := UpdateWindow(main_window.handle);
 		ShowWindow(main_window.handle, SW_SHOW);
+
 		drawable_area: RECT;
 		GetClientRect(main_window.handle, *drawable_area);
+		
 		main_window.bitmap = create_Bitmap(.{
-			x = (drawable_area.right  - drawable_area.left), 
-			y = (drawable_area.bottom - drawable_area.top)
+			x = drawable_area.right - drawable_area.left, 
+			y = drawable_area.bottom - drawable_area.top
 		});
 		
 	}
 	return main_window;
 }
 
-update_Window :: (window : *Window_Info)
+update_Window :: (window : *Window_Info) #c_call
 {
 	RedrawWindow(window.handle, null, null, RDW_INVALIDATE | RDW_UPDATENOW);
 }
@@ -143,8 +153,9 @@ Thread_Info :: struct
 THREAD_STACK_SIZE :: #run Megabytes(8);
 THREAD_CREATION_FLAGS : Creation_Flags;
 
-start_Thread :: (f : (*void) -> int #c_call, data : *void) -> Thread
+start_Thread :: (f : (*void) -> int #c_call, data : *void) -> Thread #c_call
 {
+	push_context,defer_pop c;
 	handle := CreateThread(null, THREAD_STACK_SIZE, xx f, data, THREAD_CREATION_FLAGS, null);
 	if !handle  return xx null;
 
@@ -157,12 +168,12 @@ start_Thread :: (f : (*void) -> int #c_call, data : *void) -> Thread
 	return xx null;
 }
 
-stop_Thread :: (thread : Thread) 
+stop_Thread :: (thread : Thread)  #c_call
 {
-
+	//TODO(Qwendo): implement this
 }
 
-get_BackBuffer :: (window : *Window_Info) -> BackBuffer
+get_BackBuffer :: (window : *Window_Info) -> BackBuffer #c_call
 {
 	bb := BackBuffer.{};
 	// Note(Qwendo): This will have to be properly locked once we do multithreading!!!
@@ -238,7 +249,7 @@ draw_Window :: (window : *Window_Info)
 	using window;
 	scanlines_copied   := StretchDIBits(
 		  window.device_context
-		, xx 0, xx 0, xx bitmap.size.x, xx bitmap.size.y
+		, xx 0, xx 0, xx window.size.x, xx window.size.y
 		, xx 0, xx 0, xx bitmap.size.x, xx bitmap.size.y
 		, bitmap.data.data
 		, *bitmap.info
@@ -272,6 +283,8 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 
 		case WM_SIZE;
 			print("We got resized to %\n", window_info.size);
+			window_info.size.x = xx (lparam & 0x0000FFFF) >> 0;
+			window_info.size.y = xx (lparam & 0xFFFF0000) >> 16;
 
 		case WM_DESTROY; #through;
 		case WM_CLOSE;
