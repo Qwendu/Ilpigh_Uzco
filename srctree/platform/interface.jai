@@ -9,7 +9,7 @@ Pixel :: struct
 	r : u8;
 	a : u8;
 	#place b;
-	code : u32; // 0xAARRGGBB Default color notation format AA = Alpha, RR = Red, GG = Green, BB = Blue
+	code : u32 = ---; // 0xAARRGGBB Default color notation format AA = Alpha, RR = Red, GG = Green, BB = Blue
 }
 
 BackBuffer :: struct
