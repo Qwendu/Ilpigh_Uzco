@@ -62,4 +62,3 @@ affine_Transform :: (mat : Matrix($N, N, $T), v : Vector(N-1, T)) -> Vector(N, T
 
 
 #import "Vector";
-#import "Trig";
