@@ -199,10 +199,12 @@ handle_Events :: (window : *Window_Info) -> (should_exit : bool)
 {
 	should_exit := false;
 	msg : MSG;
+	// As soon as the WM_CLOSE is received, this loop
+	// does not run anymore  @GracefullyExit
 	while PeekMessageW(*msg, window.handle, 0, 0, PM_REMOVE)
 	{
 		TranslateMessage(*msg);
-		DispatchMessageW(*msg) <= 0;
+		DispatchMessageW(*msg);
 	}
 	should_exit = window.exit;
 	if should_exit
@@ -212,7 +214,12 @@ handle_Events :: (window : *Window_Info) -> (should_exit : bool)
 	return should_exit;
 }
 
-
+try_Close :: (window : *Window_Info)
+{
+	// @GracefullyExit so here we set the bitmap to be
+	// drawn, it does not matter anymore really
+	atomic_write(*window.bitmap.wait_for_blit, 0);
+}
 
 
 

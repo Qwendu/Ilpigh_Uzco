@@ -20,17 +20,15 @@ main :: ()
 		should_exit := handle_Events(xx platform_context.window);
 		if should_exit 
 		{
-			// Concurrency Bug, we dont exit because
-			//  the update_Window() function sets and waits for the wait_for_blit
-			//  value to change, we never change it tho
-			//
 			atomic_write(*platform_context.exit, 1);	
+			break;
 		}
 	}
 	
 	while atomic_read(*platform_context.exit) == 1
 	{
-		handle_Events(xx platform_context.window);
+		// repeat this until the game says it has shutdown
+		try_Close(xx platform_context.window);
 	}
 }
 

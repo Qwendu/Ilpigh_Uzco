@@ -70,8 +70,8 @@ render_Triangles_In_Mesh_Buffer :: (plt : *Platform, counter : int)
 
 	verts[3] = .{-3,0,-1};
 	verts[4] = .{ 3,0,-1};
-	verts[5] = .{-3,0,-6};
-	verts[6] = .{ 3,0,-6};
+	verts[5] = .{-3,0,-10};
+	verts[6] = .{ 3,0,-10};
 	
 	mesh.vertices = verts;
 	mesh.triangles = .[.{0,1,2}, .{3, 4, 5}, .{4, 6, 5}];
@@ -168,13 +168,17 @@ render_Triangles_In_Mesh_Buffer :: (plt : *Platform, counter : int)
 					z_0 := a_hom.z;
 					z_1 := b_hom.z;
 					z_2 := c_hom.z;
+					w_0 := a_hom.w;
+					w_1 := b_hom.w;
+					w_2 := c_hom.w;
 
 					depth := l_0 * z_0 + l_1 * z_1 + l_2 * z_2;
 					if depth < depth_buffer[y_off * bb.stride + x_off]
 					{
+						depth_linear := l_0 * w_0 + l_1 * w_1 + l_2 * w_2;
 						depth_buffer[y_off * bb.stride + x_off] = depth;
-						depth_color := cast(u8)clamp(depth * 255, 0, 255);
-						bb.data[y_off * bb.stride + x_off] = .{r = 0xFF, g = 0, b = depth_color, a = 0xFF};
+						depth_color := 255 - cast(u8)clamp(depth_linear/10 * 255, 0, 255);
+						bb.data[y_off * bb.stride + x_off] = .{r = depth_color, g = depth_color, b = depth_color, a = 0xFF};
 					}
 				}
 			}
