@@ -45,7 +45,7 @@ draw :: (args :*Draw_Args) #c_call
 		buffer : *Mesh_Buffer = get_Read_Pointer(command_reader);
 		render_Triangles_In_Mesh_Buffer(plt, counter);
 
-		counter += 1;
+		counter = (counter + 1)% 1000;
 		plt.update_Window(plt.window);
 	}
 	atomic_write(args.exit, 0);
@@ -57,34 +57,53 @@ draw :: (args :*Draw_Args) #c_call
 
 
 
-
+depth_buffer : [] float;
 
 
 render_Triangles_In_Mesh_Buffer :: (plt : *Platform, counter : int)
 {
 	mesh := Mesh.{};
-	verts : [3] float3;
+	verts : [7] float3;
 	verts[0] = .{0,0,-1};
 	verts[1] = .{1,0,-1};
 	verts[2] = .{0,1,-1};
+
+	verts[3] = .{-3,0,-1};
+	verts[4] = .{ 3,0,-1};
+	verts[5] = .{-3,0,-6};
+	verts[6] = .{ 3,0,-6};
 	
 	mesh.vertices = verts;
-	mesh.triangles = .[.{0,1,2}];
-
-	mesh.vertices[0].x = cast(float)counter/1000;
-	print("x = %\n", mesh.vertices[0].x);
-
+	mesh.triangles = .[.{0,1,2}, .{3, 4, 5}, .{4, 6, 5}];
 	camera : Camera;
 
 
 	bb := plt.get_BackBuffer(plt.window);
+	if !depth_buffer
+	{
+		depth_buffer = NewArray(bb.stride * bb.size.y, float);
+	}
+	if depth_buffer.count != bb.stride * bb.size.y
+	{
+		free(depth_buffer.data);
+		depth_buffer.count = 0;
+		depth_buffer = NewArray(bb.stride * bb.size.y, float);
+	}
+
 	memset(bb.data, 0, size_of(Pixel) * bb.stride * bb.size.y); // Clear Backbuffer
+	for *depth_buffer
+	{
+		<<it = 1;
+	}
 
 
 	aspect : float = bb.size.x/cast(float)bb.size.y;
 	camera.projection = projection_Matrix(fov = 90, aspect = aspect, near = 0.1, far = 10);
+	camera.position.x = sin(counter/1000.0 * 2 * PI) + 1;
+	camera.position.y = cos(counter/1000.0 * 2 * PI) + 1;
+	camera.position.z = -0.8;
 
-	compound_matrix := camera.projection;
+	compound_matrix := camera.projection * world_To_Camera(*camera);
 
 	for triangle : mesh.triangles
 	{
@@ -99,6 +118,10 @@ render_Triangles_In_Mesh_Buffer :: (plt : *Platform, counter : int)
 		a_hom := project_Point(compound_matrix, a_mesh);
 		b_hom := project_Point(compound_matrix, b_mesh);
 		c_hom := project_Point(compound_matrix, c_mesh);
+
+		if a_hom.w < 0 continue;
+		if b_hom.w < 0 continue;
+		if c_hom.w < 0 continue;
 		
 		a_hom.x *= bb.size.x/2;
 		b_hom.x *= bb.size.x/2;
@@ -114,10 +137,10 @@ render_Triangles_In_Mesh_Buffer :: (plt : *Platform, counter : int)
 
 		screen_min :int2;
 		screen_max :int2;
-		screen_min.x = max(cast(int) min(a_hom.x, b_hom.x, c_hom.x), -bb.size.x/2);
-		screen_min.y = max(cast(int) min(a_hom.y, b_hom.y, c_hom.y), -bb.size.y/2);
-		screen_max.x = min(cast(int) max(a_hom.x, b_hom.x, c_hom.x),  bb.size.x/2);
-		screen_max.y = min(cast(int) max(a_hom.y, b_hom.y, c_hom.y),  bb.size.y/2);
+		screen_min.x = max(cast(int) min(a_screen.x, b_screen.x, c_screen.x), -bb.size.x/2);
+		screen_min.y = max(cast(int) min(a_screen.y, b_screen.y, c_screen.y), -bb.size.y/2);
+		screen_max.x = min(cast(int) max(a_screen.x, b_screen.x, c_screen.x),  bb.size.x/2);
+		screen_max.y = min(cast(int) max(a_screen.y, b_screen.y, c_screen.y),  bb.size.y/2);
 
 		det_2d :: (a :int2, b: int2, p : int2) -> int
 		{
@@ -137,7 +160,22 @@ render_Triangles_In_Mesh_Buffer :: (plt : *Platform, counter : int)
 				side_2 := det_2d(c_screen, a_screen , pxl);
 				if side_0 > 0 && side_1 > 0 && side_2 > 0
 				{
-					bb.data[y_off * bb.stride + x_off] = .{code = 0xFF00FF00};
+					area_2 := det_2d(a_screen, b_screen, c_screen);;
+					l_0 := side_1/cast(float)area_2;
+					l_1 := side_2/cast(float)area_2;
+					l_2 := side_0/cast(float)area_2;
+
+					z_0 := a_hom.z;
+					z_1 := b_hom.z;
+					z_2 := c_hom.z;
+
+					depth := l_0 * z_0 + l_1 * z_1 + l_2 * z_2;
+					if depth < depth_buffer[y_off * bb.stride + x_off]
+					{
+						depth_buffer[y_off * bb.stride + x_off] = depth;
+						depth_color := cast(u8)clamp(depth * 255, 0, 255);
+						bb.data[y_off * bb.stride + x_off] = .{r = 0xFF, g = 0, b = depth_color, a = 0xFF};
+					}
 				}
 			}
 		}
@@ -165,3 +203,4 @@ render_Triangles_In_Mesh_Buffer :: (plt : *Platform, counter : int)
 #import "Vector";
 #import "Matrix";
 #import "Camera";
+#import "Math";

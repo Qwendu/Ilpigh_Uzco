@@ -11,6 +11,21 @@ Vector :: struct(dim : int, T : Type)
 	
 	#place x;
 	data : [dim] T;
+	
+	#if dim >= 3
+	{
+	#place x;
+		xy : Vector(2, T);
+	#place y;
+		yz : Vector(2, T);
+	}
+	#if dim >= 4
+	{
+	#place x;
+		xyz : Vector(3, T);
+	#place y;
+		yzw : Vector(3, T);
+	}
 }
 
 
@@ -25,7 +40,7 @@ float4 :: Vector(4, float);
 
 dot :: (a : $V/Vector, b : V) -> V.T
 {
-	res : T;
+	res : V.T;
 	for a.data  
 	{
 		res += a.data[it_index] * b.data[it_index];

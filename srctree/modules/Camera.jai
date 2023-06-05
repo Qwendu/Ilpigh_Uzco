@@ -5,6 +5,8 @@ Camera :: struct
 {
 	world_to_camera : float4x4;
 	projection      : float4x4;
+
+	position : float3;
 }
 
 
@@ -56,6 +58,20 @@ project_Point :: (mat : float4x4, vec : float3) -> float4
 	r.x /= r.w;
 	r.y /= r.w;
 	r.z /= r.w;
+	return r;
+}
+
+world_To_Camera :: (cam : *Camera) -> float4x4
+{
+	r : float4x4;
+	r.data[0][0] = 1;
+	r.data[1][1] = 1;
+	r.data[2][2] = 1;
+	r.data[3][3] = 1;
+
+	r.data[0][3] = -dot(r.row_vectors[0].xyz, cam.position);
+	r.data[1][3] = -dot(r.row_vectors[1].xyz, cam.position);
+	r.data[2][3] = -dot(r.row_vectors[2].xyz, cam.position);
 	return r;
 }
 

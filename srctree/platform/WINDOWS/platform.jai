@@ -100,7 +100,12 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 
 update_Window :: (window : *Window_Info) #c_call
 {
+	atomic_write(*window.bitmap.wait_for_blit, 1);
 	RedrawWindow(window.handle, null, null, RDW_INVALIDATE | RDW_UPDATENOW);
+	while atomic_read(*window.bitmap.wait_for_blit) == 1
+	{
+
+	}
 }
 
 
@@ -112,6 +117,7 @@ Bitmap :: struct
 	data : [] Pixel; @"assert(data.count >= dimensions.x * dimensions.y);";
 
 	info : BITMAPINFO;
+	wait_for_blit : int;
 }
 
 DLL :: struct
@@ -198,9 +204,11 @@ handle_Events :: (window : *Window_Info) -> (should_exit : bool)
 		TranslateMessage(*msg);
 		DispatchMessageW(*msg) <= 0;
 	}
-	print("After handle events %\n", should_exit);
 	should_exit = window.exit;
-	if should_exit print("we should exit\n");
+	if should_exit
+	{
+		print("we should exit\n");
+	}
 	return should_exit;
 }
 
@@ -261,6 +269,7 @@ draw_Window :: (window : *Window_Info)
 		err := GetLastError();
 		log_error("[Error]: Windows Error %\n", err);
 	}
+	atomic_write(*window.bitmap.wait_for_blit, 0);
 }
 
 
@@ -279,7 +288,10 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 
 		if u_message == {
 		case WM_PAINT;
-			draw_Window(window_info);
+			if atomic_read(*window_info.bitmap.wait_for_blit)
+			{
+				draw_Window(window_info);
+			}
 
 		case WM_SIZE;
 			print("We got resized to %\n", window_info.size);
@@ -368,3 +380,4 @@ RDW_UPDATENOW  : u32 : 0x0100;
 #import "Basic";
 #import "Windows_Utf8";
 #import "Vector";
+#import "Atomics";

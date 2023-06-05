@@ -18,19 +18,19 @@ main :: ()
 	{
 		// TODO(Qwendo): here do we update the input?
 		should_exit := handle_Events(xx platform_context.window);
-		if atomic_read(*platform_context.exit) == 1
-		{
-			print("We exited the game thread???\n");
-			break;
-		}
 		if should_exit 
 		{
+			// Concurrency Bug, we dont exit because
+			//  the update_Window() function sets and waits for the wait_for_blit
+			//  value to change, we never change it tho
+			//
 			atomic_write(*platform_context.exit, 1);	
-			break;
 		}
 	}
+	
 	while atomic_read(*platform_context.exit) == 1
 	{
+		handle_Events(xx platform_context.window);
 	}
 }
 
