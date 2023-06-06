@@ -3,12 +3,8 @@
 
 Camera :: struct
 {
-	world_to_camera : float4x4;
-	projection      : float4x4;
-
 	position : float3;
 	rotation : Quaternion;
-	scale    : float3 = .{1,1,1};
 }
 
 
@@ -25,7 +21,7 @@ projection_Matrix :: (
 	// From: https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/opengl-perspective-projection-matrix.html
 	//
 	res : float4x4;
-	top    := tan(fov/2) * near;
+	top    := tan(fov/360 * PI) * near;
 	bottom := -top;
 	right  := top * aspect;
 	left   := -right;
@@ -65,13 +61,15 @@ project_Point :: (mat : float4x4, vec : float3) -> float4
 
 world_To_Camera :: (cam : *Camera) -> float4x4
 {
-	rotation : float4x4 = identity(4, float);
+	rotation : float4x4 = rotation_Matrix(cam.rotation);
 
 	position := identity(4, float);
 	position.row_vectors[0].w = -cam.position.x;
 	position.row_vectors[1].w = -cam.position.y;
 	position.row_vectors[2].w = -cam.position.z;
 
+	// At first, put camera into the center of the world
+	// Then rotate everything around the camera
 	return rotation * position;
 }
 

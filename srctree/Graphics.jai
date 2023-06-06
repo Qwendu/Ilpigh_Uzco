@@ -37,10 +37,12 @@ draw :: (args :*Draw_Args) #c_call
 	m1.vertices = .[
 		.{0,0,-1},
 		.{1,0,-1},
-		.{0,1,-1}
+		.{0,1,-1},
+		.{0,0,0}
 	];
 	m1.triangles = .[
-		.{0,1,2}
+		.{0,1,2},
+		.{0,3,1}
 	];
 
 	m2 := array_add(*loaded_meshes);
@@ -99,6 +101,8 @@ Draw_Buffer :: struct
 	
 	n_inserted : int;
 	instances  : [300] Instance;
+
+	camera : Camera;
 };
 
 
@@ -111,9 +115,9 @@ loaded_meshes : [..] Mesh;
 depth_buffer : [] float;
 
 
-render_Triangles_In_Draw_Buffer :: (plt : *Platform, mesh_buffer : *Draw_Buffer)
+render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 {
-	print("Got mesh buffer with % meshes to draw\n", mesh_buffer.n_inserted);
+	print("Got mesh buffer with % meshes to draw\n", draw_buffer.n_inserted);
 
 	bb := plt.get_BackBuffer(plt.window);
 	aspect : float = bb.size.x/cast(float)bb.size.y;
@@ -135,22 +139,21 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, mesh_buffer : *Draw_Buffer)
 			<<it = 1;
 		}
 	}
+	far := 6.0;
 
-	camera : Camera;
-	camera.projection = projection_Matrix(fov = 90, aspect = aspect, near = 0.1, far = 10);
-	//camera.position.x = sin(counter/1000.0 * 2 * PI) + 1;
-	//camera.position.y = cos(counter/1000.0 * 2 * PI) + 1;
-	camera.position.z = 2;
+	camera := *draw_buffer.camera;
+	projection := projection_Matrix(fov = 90, aspect = aspect, near = 0.1, far = far);
+	world_to_camera := world_To_Camera(camera);
 
-	world_to_projection := camera.projection * world_To_Camera(*camera);
+	world_to_projection := projection * world_to_camera;
 
-	for instance:  0..mesh_buffer.n_inserted-1
+	for instance:  0..draw_buffer.n_inserted-1
 	{
-		mesh           := *loaded_meshes[mesh_buffer.instances[instance].id];
-		model_to_world :=  mesh_buffer.instances[instance].model_to_world;
+		mesh           := *loaded_meshes[draw_buffer.instances[instance].id];
+		model_to_world :=  draw_buffer.instances[instance].model_to_world;
 		mesh_to_world  := model_to_world * mesh.matrix;
 	
-		mesh_to_projection := world_to_projection * mesh_to_world;
+		mesh_to_projection := world_to_projection;// * mesh_to_world;
 
 
 		for triangle : mesh.triangles
@@ -166,6 +169,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, mesh_buffer : *Draw_Buffer)
 			a_hom := project_Point(mesh_to_projection, a_mesh);
 			b_hom := project_Point(mesh_to_projection, b_mesh);
 			c_hom := project_Point(mesh_to_projection, c_mesh);
+
 
 			if a_hom.w < 0 continue;
 			if b_hom.w < 0 continue;
@@ -221,11 +225,12 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, mesh_buffer : *Draw_Buffer)
 						w_2 := c_hom.w;
 
 						depth := l_0 * z_0 + l_1 * z_1 + l_2 * z_2;
+
 						if depth < depth_buffer[y_off * bb.stride + x_off]
 						{
 							depth_linear := l_0 * w_0 + l_1 * w_1 + l_2 * w_2;
 							depth_buffer[y_off * bb.stride + x_off] = depth;
-							depth_color := 255 - cast(u8)clamp(depth_linear/10 * 255, 0, 255);
+							depth_color := 255 - cast(u8)clamp(depth_linear/far * 255, 0, 255);
 							bb.data[y_off * bb.stride + x_off] = .{r = depth_color, g = depth_color, b = depth_color, a = 0xFF};
 						}
 					}

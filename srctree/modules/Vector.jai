@@ -74,3 +74,40 @@ operator [] :: (a : $V/Vector, idx : int) -> V.T
 {
 	return a.data[idx];
 }
+
+
+length :: (a : $V/Vector) -> V.T
+{
+	discriminant : V.T;
+	for a.data  discriminant += it * it;
+	return sqrt(discriminant);
+}
+
+length_Squared :: (a : $V/Vector) -> V.T
+{
+	discriminant : V.T;
+	for a.data  discriminant += it * it;
+	return discriminant;
+}
+
+cross :: (a : float3, b : float3) -> float3
+{
+	r : float3;
+	r.x = a.y * b.z - a.z * b.y;
+	r.y = a.z * b.x - a.x * b.z;
+	r.z = a.x * b.y - a.y * b.x;
+	return r;
+}
+
+
+normalize :: (a : $V/Vector, fallback : V) -> V
+{
+	len_squared := length_Squared(a);
+	if len_squared < 0.0001  return fallback;
+	len := sqrt(len_squared);
+	r := a;
+	r *= 1/len;
+	return r;
+}
+
+#import "Math";

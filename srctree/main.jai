@@ -32,21 +32,30 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 	ticks_since_start : int = 0;
 
-	loop := 10000;
+	loop := 100;
 	
 	while atomic_read(*platform.exit) == 0
 	{
-		center : float3 = positions[ticks_since_start % positions.count];
+		center : float3 = .{y=1};// positions[ticks_since_start % positions.count];
 		print("center = %\n", center);
-		meshes_to_draw := get_Write_Pointer(graphics.command_buffer_writer);
-		<<meshes_to_draw = .{};
-		mat := identity(4, float);
-		mat.row_vectors[0].w = center.x;
-		mat.row_vectors[1].w = center.y;
-		mat.row_vectors[2].w = center.z;
+		draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
+		<<draw_buffer = .{};
 
-		add_Mesh(meshes_to_draw, 0, mat);
-		add_Mesh(meshes_to_draw, 1, mat);
+		mat := identity(4, float);
+		//mat.row_vectors[0].w = center.x;
+		//mat.row_vectors[1].w = center.y;
+		//mat.row_vectors[2].w = center.z;
+
+		add_Mesh(draw_buffer, 0, mat);
+		add_Mesh(draw_buffer, 1, mat);
+		draw_buffer.camera.position = center;
+
+		delta :float = ticks_since_start/cast(float)loop - 0.5;
+		pitch := rotation_Around_Axis(.{1,0,0}, 0.3 * PI);
+		yaw   := rotation_Around_Axis(.{0,1,0}, delta * 0.5 * PI);
+		rotation := yaw * pitch ;
+		
+		draw_buffer.camera.rotation = rotation;
 		
 		ticks_since_start = (ticks_since_start + 1)%loop;
 		platform.sleep(250);
@@ -72,3 +81,4 @@ platform : *Platform;
 #import "Math";
 #import "Vector";
 #import "Matrix";
+#import "Quaternion";
