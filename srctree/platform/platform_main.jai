@@ -9,6 +9,7 @@ main :: ()
 	platform_context.update_Window = xx update_Window;
 	platform_context.get_BackBuffer = xx get_BackBuffer;
 	platform_context.window = xx create_Window("Ilpigh Uzco", .{400, 300});
+	platform_context.sleep = sleep;
 
 	game := load_Game_Code(Game_DLL_Name);
 

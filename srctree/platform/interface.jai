@@ -28,6 +28,7 @@ Platform :: struct
 	stop\_Thread  : (Thread) #c_call;
 	update_Window : (Window) #c_call;
 	get_BackBuffer : (Window) -> BackBuffer #c_call;
+	sleep          : (int) #c_call;
 };
 
 

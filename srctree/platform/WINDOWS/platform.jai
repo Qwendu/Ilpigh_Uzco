@@ -221,7 +221,10 @@ try_Close :: (window : *Window_Info)
 	atomic_write(*window.bitmap.wait_for_blit, 0);
 }
 
-
+sleep :: (duration_ms : int) #c_call
+{
+	Sleep(xx duration_ms);
+}
 
 
 

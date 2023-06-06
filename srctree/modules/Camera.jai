@@ -7,6 +7,8 @@ Camera :: struct
 	projection      : float4x4;
 
 	position : float3;
+	rotation : Quaternion;
+	scale    : float3 = .{1,1,1};
 }
 
 
@@ -63,16 +65,14 @@ project_Point :: (mat : float4x4, vec : float3) -> float4
 
 world_To_Camera :: (cam : *Camera) -> float4x4
 {
-	r : float4x4;
-	r.data[0][0] = 1;
-	r.data[1][1] = 1;
-	r.data[2][2] = 1;
-	r.data[3][3] = 1;
+	rotation : float4x4 = identity(4, float);
 
-	r.data[0][3] = -dot(r.row_vectors[0].xyz, cam.position);
-	r.data[1][3] = -dot(r.row_vectors[1].xyz, cam.position);
-	r.data[2][3] = -dot(r.row_vectors[2].xyz, cam.position);
-	return r;
+	position := identity(4, float);
+	position.row_vectors[0].w = -cam.position.x;
+	position.row_vectors[1].w = -cam.position.y;
+	position.row_vectors[2].w = -cam.position.z;
+
+	return rotation * position;
 }
 
 
@@ -80,3 +80,4 @@ world_To_Camera :: (cam : *Camera) -> float4x4
 #import "Vector";
 #import "Matrix";
 #import "Math";
+#import "Quaternion";

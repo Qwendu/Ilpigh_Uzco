@@ -12,6 +12,13 @@ Matrix :: struct(Rows : int, Cols : int, T : Type)
 float4x4 :: Matrix(4,4,float);
 float3x3 :: Matrix(3,3,float);
 
+identity :: ($N : int, $T : Type) -> Matrix(N,N, T) #expand #no_debug
+{
+	r : Matrix(N,N, T) = .{};
+	for 0..N-1  r.data[it][it] = cast(T) 1;
+	return r;
+}
+
 operator * :: (mat : $M/Matrix, v : Vector(M.Cols, M.T)) -> Vector(M.Rows, M.T)
 {
 	v :Vector(M.Rows, M.T);
