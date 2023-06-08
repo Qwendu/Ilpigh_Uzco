@@ -82,7 +82,7 @@ platform : *Platform;
 #import,file "Graphics.jai";
 #import "Basic";
 #import "Atomics";
-#import "AsyncBuffer";
+#import "Async_Buffer";
 #import "Math";
 #import "Vector";
 #import "Matrix";
