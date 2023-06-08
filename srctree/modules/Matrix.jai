@@ -62,6 +62,13 @@ affine_Transform :: (mat : Matrix($N, N, $T), v : Vector(N-1, T)) -> Vector(N, T
 	return res;
 }
 
+add_Offset :: (mat : *float4x4, pos : float3)
+{
+	mat.row_vectors[0].w += pos.x;
+	mat.row_vectors[1].w += pos.y;
+	mat.row_vectors[2].w += pos.z;
+}
+
 #scope_file
 
 

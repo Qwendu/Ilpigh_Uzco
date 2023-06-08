@@ -33,26 +33,31 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	ticks_since_start : int = 0;
 
 	loop := 100;
+
+	position : float3 = .{1,0.1, -1};
+	velocity : float3 = .{-0.2,0,0};
 	
 	while atomic_read(*platform.exit) == 0
 	{
+		position += velocity * 0.25;
+		if position.x <= -1  position.x = 1;
 		center : float3 = .{y=1};// positions[ticks_since_start % positions.count];
 		print("center = %\n", center);
 		draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
-		<<draw_buffer = .{};
+		clear_Models(draw_buffer);
+		draw_buffer.submission_time = current_time_monotonic();
 
 		mat := identity(4, float);
-		//mat.row_vectors[0].w = center.x;
-		//mat.row_vectors[1].w = center.y;
-		//mat.row_vectors[2].w = center.z;
+		add_Offset(*mat, position);
 
+		add_Mesh(draw_buffer, 0, mat, velocity);
 		add_Mesh(draw_buffer, 0, mat);
-		add_Mesh(draw_buffer, 1, mat);
+		add_Mesh(draw_buffer, 1, identity(4, float));
 		draw_buffer.camera.position = center;
 
 		delta :float = ticks_since_start/cast(float)loop - 0.5;
-		pitch := rotation_Around_Axis(.{1,0,0}, 0.3 * PI);
-		yaw   := rotation_Around_Axis(.{0,1,0}, delta * 0.5 * PI);
+		pitch := rotation_Around_Axis(.{1,0,0}, 0 * PI);
+		yaw   := rotation_Around_Axis(.{0,1,0}, delta * 0 * PI);
 		rotation := yaw * pitch ;
 		
 		draw_buffer.camera.rotation = rotation;

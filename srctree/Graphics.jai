@@ -77,30 +77,39 @@ draw :: (args :*Draw_Args) #c_call
 }
 
 
-add_Mesh :: (buffer : *Draw_Buffer, mesh_id : int, orientation : float4x4) 
+add_Mesh :: (buffer : *Draw_Buffer, mesh_id : int, orientation : float4x4, vel : float3 = .{}) 
 {
 	using buffer;
 	if n_inserted < instances.count
 	{
 		instances[n_inserted].id = mesh_id;
 		instances[n_inserted].model_to_world = orientation;
+		instances[n_inserted].velocity = vel;
 		n_inserted += 1;
 	}
+}
+
+clear_Models :: (draw_buffer : *Draw_Buffer)
+{
+	draw_buffer.n_inserted = 0;
 }
 
 #scope_file
 
 
+
 Draw_Buffer :: struct
 {
-	Instance :: struct
+	submission_time : Apollo_Time;
+	Model_Instance :: struct
 	{
 		id : int;
 		model_to_world : float4x4;
+		velocity : float3;
 	};
 	
 	n_inserted : int;
-	instances  : [300] Instance;
+	instances  : [300] Model_Instance;
 
 	camera : Camera;
 };
@@ -139,21 +148,27 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			<<it = 1;
 		}
 	}
-	far := 6.0;
 
+	far := 6.0;
 	camera := *draw_buffer.camera;
 	projection := projection_Matrix(fov = 90, aspect = aspect, near = 0.1, far = far);
 	world_to_camera := world_To_Camera(camera);
 
 	world_to_projection := projection * world_to_camera;
+	
+	render_time := current_time_monotonic();
+	delta := cast(float)to_milliseconds(render_time - draw_buffer.submission_time)/1000;
+	print("Delta %\n", delta);
 
-	for instance:  0..draw_buffer.n_inserted-1
+	for instance_idx:  0..draw_buffer.n_inserted-1
 	{
-		mesh           := *loaded_meshes[draw_buffer.instances[instance].id];
-		model_to_world :=  draw_buffer.instances[instance].model_to_world;
+		instance := *draw_buffer.instances[instance_idx];
+		mesh           := *loaded_meshes[instance.id];
+		model_to_world :=  instance.model_to_world;
+		add_Offset(*model_to_world, instance.velocity * delta);
 		mesh_to_world  := model_to_world * mesh.matrix;
 	
-		mesh_to_projection := world_to_projection;// * mesh_to_world;
+		mesh_to_projection := world_to_projection * mesh_to_world;
 
 
 		for triangle : mesh.triangles
