@@ -1,6 +1,8 @@
 #import "Common";
 
 
+PHYSICS_FREQUENCY :: 50;
+
 #program_export
 game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 {
@@ -19,51 +21,40 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	while atomic_read(*args.output) == null
 	{}
 
-	graphics := args.output;
+	graphics := atomic_read(*args.output);
 
-
-
-	positions := float3.[
-		.{0,0,-1},
-		.{1,0,-1},
-		.{2,0,-1},
-		.{3,0,-1},
-	];
 
 	ticks_since_start : int = 0;
 
-	loop := 100;
-
-	position : float3 = .{1,0.1, -1};
-	velocity : float3 = .{-0.2,0,0};
+	ms_pause : int =  1000/PHYSICS_FREQUENCY;
 	
+	draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
 	while atomic_read(*platform.exit) == 0
 	{
-		position += velocity * 0.25;
-		if position.x <= -1  position.x = 1;
-		center : float3 = .{y=1};// positions[ticks_since_start % positions.count];
-		print("center = %\n", center);
-		draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
-		clear_Models(draw_buffer);
-		draw_buffer.submission_time = current_time_monotonic();
+		clear_Instances(draw_buffer);
+
 
 		mat := identity(4, float);
-		add_Offset(*mat, position);
 
-		add_Mesh(draw_buffer, 0, mat, velocity);
-		add_Mesh(draw_buffer, 0, mat);
-		add_Mesh(draw_buffer, 1, identity(4, float));
-		draw_buffer.camera.position = center;
+		instance_1 := Model_Instance.{id = 0, model_to_world = mat};
+		instance_2 := Model_Instance.{id = 1, model_to_world = identity(4, float)};
 
-		delta :float = ticks_since_start/cast(float)loop - 0.5;
+		add_Mesh(draw_buffer, instance_1);
+		add_Mesh(draw_buffer, instance_2);
+
+		draw_buffer.camera.position = .{0,1,.1};
+
+		delta :float = - 0.5;
 		pitch := rotation_Around_Axis(.{1,0,0}, 0 * PI);
 		yaw   := rotation_Around_Axis(.{0,1,0}, delta * 0 * PI);
 		rotation := yaw * pitch ;
 		
 		draw_buffer.camera.rotation = rotation;
 		
-		ticks_since_start = (ticks_since_start + 1)%loop;
-		platform.sleep(250);
+
+		draw_buffer.submission_time = current_time_monotonic();
+		draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);
+		platform.sleep(ms_pause);
 	}
 
 	atomic_write(*draw_thread_exit, 1);

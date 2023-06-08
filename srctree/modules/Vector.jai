@@ -70,6 +70,13 @@ operator * :: (a : $V/Vector, b : V.T) -> V #symmetric
 	return r;
 }
 
+operator / :: (a : $V/Vector, b : V.T) -> V
+{
+	r := a;
+	for r.data  r.data[it_index] /= b;
+	return r;
+}
+
 operator [] :: (a : $V/Vector, idx : int) -> V.T
 {
 	return a.data[idx];

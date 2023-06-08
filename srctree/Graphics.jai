@@ -77,22 +77,29 @@ draw :: (args :*Draw_Args) #c_call
 }
 
 
-add_Mesh :: (buffer : *Draw_Buffer, mesh_id : int, orientation : float4x4, vel : float3 = .{}) 
+add_Mesh :: (buffer : *Draw_Buffer, instance : Model_Instance)
 {
 	using buffer;
-	if n_inserted < instances.count
+	if n_instances < instances.count
 	{
-		instances[n_inserted].id = mesh_id;
-		instances[n_inserted].model_to_world = orientation;
-		instances[n_inserted].velocity = vel;
-		n_inserted += 1;
+		instances[n_instances] = instance;
+		n_instances += 1;
 	}
 }
 
-clear_Models :: (draw_buffer : *Draw_Buffer)
+
+clear_Instances :: (draw_buffer : *Draw_Buffer)
 {
-	draw_buffer.n_inserted = 0;
+	draw_buffer.n_instances = 0;
 }
+
+Model_Instance :: struct
+{
+	id : int;
+	model_to_world : float4x4;
+	velocity : float3;
+	draw_lines : bool;
+};
 
 #scope_file
 
@@ -101,14 +108,9 @@ clear_Models :: (draw_buffer : *Draw_Buffer)
 Draw_Buffer :: struct
 {
 	submission_time : Apollo_Time;
-	Model_Instance :: struct
-	{
-		id : int;
-		model_to_world : float4x4;
-		velocity : float3;
-	};
+
 	
-	n_inserted : int;
+	n_instances : int;
 	instances  : [300] Model_Instance;
 
 	camera : Camera;
@@ -126,7 +128,6 @@ depth_buffer : [] float;
 
 render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 {
-	print("Got mesh buffer with % meshes to draw\n", draw_buffer.n_inserted);
 
 	bb := plt.get_BackBuffer(plt.window);
 	aspect : float = bb.size.x/cast(float)bb.size.y;
@@ -158,11 +159,10 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	
 	render_time := current_time_monotonic();
 	delta := cast(float)to_milliseconds(render_time - draw_buffer.submission_time)/1000;
-	print("Delta %\n", delta);
 
-	for instance_idx:  0..draw_buffer.n_inserted-1
+	for instance_idx:  0..draw_buffer.n_instances-1
 	{
-		instance := *draw_buffer.instances[instance_idx];
+		instance       := *draw_buffer.instances[instance_idx];
 		mesh           := *loaded_meshes[instance.id];
 		model_to_world :=  instance.model_to_world;
 		add_Offset(*model_to_world, instance.velocity * delta);
@@ -251,7 +251,54 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 					}
 				}
 			}
-			
+			draw_Line :: (start : int2, end : int2) #expand
+			{
+
+				// TODO(Qwendo): Clip these to the screen so we avoid taking unecessary 
+				// steps out of bounds
+				start_depth := a_hom.z;
+				end\ _depth := b_hom.z;
+				delta := end - start;
+				number_steps := max(abs(delta.x), abs(delta.y));
+				step  := float2.{delta.x/cast(float)number_steps, delta.y/cast(float)number_steps};
+				for 0..number_steps-1
+				{
+					t := it/cast(float)number_steps;
+					depth := start_depth * (1 - t) + end_depth * t - 0.01;
+					x := cast(int)(start.x + step.x * it);
+					y := cast(int)(start.y + step.y * it);
+					if x < 0 || x >= bb.size.x  continue;
+					if y < 0 || y >= bb.size.y  continue;
+					if depth < 0 || depth > 1   continue;
+					if depth < depth_buffer[y * bb.stride + x]
+					{
+						bb.data[y * bb.stride + x] = .{r = 0xFF, a = 0xFF};
+						depth_buffer[y * bb.stride + x] = depth;
+					}
+				}	
+			}
+			if instance.draw_lines
+			{
+				start := a_screen + bb.size/2;
+				end   := b_screen + bb.size/2; 
+
+				draw_Line(a_screen + bb.size/2,	b_screen + bb.size/2);
+				draw_Line(b_screen + bb.size/2,	c_screen + bb.size/2);
+				draw_Line(c_screen + bb.size/2,	a_screen + bb.size/2);
+				
+			}
+
+			if false // draw AABBs of the Triangles
+			{
+				bl := screen_min + bb.size/2;
+				tr := screen_max + bb.size/2;
+				br := int2.{tr.x, bl.y};
+				tl := int2.{bl.x, tr.y};
+				draw_Line(bl, tl);
+				draw_Line(bl, br);
+				draw_Line(tr, tl);
+				draw_Line(tr, br);
+			}
 		}
 	}
 }
