@@ -6,6 +6,7 @@ PHYSICS_FREQUENCY :: 50;
 #program_export
 game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 {
+
 	if !platform_init return;
 	platform = platform_init;
 	c : Context;
@@ -31,6 +32,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
 	while atomic_read(*platform.exit) == 0
 	{
+		Frame();
 		clear_Instances(draw_buffer);
 
 
@@ -44,8 +46,8 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 		draw_buffer.camera.position = .{0,1,.1};
 
-		delta :float = - 0.5;
-		pitch := rotation_Around_Axis(.{1,0,0}, 0 * PI);
+		delta :float = -0.12;
+		pitch := rotation_Around_Axis(.{-1,0,0}, delta * PI);
 		yaw   := rotation_Around_Axis(.{0,1,0}, delta * 0 * PI);
 		rotation := yaw * pitch ;
 		
@@ -78,3 +80,4 @@ platform : *Platform;
 #import "Vector";
 #import "Matrix";
 #import "Quaternion";
+#import "Tracy";
