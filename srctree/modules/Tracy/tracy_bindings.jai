@@ -9,7 +9,6 @@
 TRACY_ENABLE :: 1;
 TRACY_HAS_CALLSTACK :: 1;
 
-
 size_t :: u64;
 
 ___tracy_set_thread_name :: (name: *u8) -> void #foreign tracyprofiler;
