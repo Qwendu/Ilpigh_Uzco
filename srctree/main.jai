@@ -28,7 +28,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	ticks_since_start : int = 0;
 
 	ms_pause : int =  1000/PHYSICS_FREQUENCY;
-	pos :float3 = .{z = 0};
+	pos :float3 = .{x = -0.1, y = -0.1,z = 0};
 	
 	draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
 	while atomic_read(*platform.exit) == 0
@@ -39,7 +39,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 		clear_Instances(draw_buffer);
 
-		pos += .{0.1, 0,0};
+		//pos += .{0.1, 0,0};
 		if pos.x > 1.3  pos.x = -1.3;
 
 		print("Pos = %\n", pos);
