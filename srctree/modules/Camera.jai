@@ -5,6 +5,9 @@ Camera :: struct
 {
 	position : float3;
 	rotation : Quaternion;
+	fov : float  = 90;
+	near : float = 0.1;
+	far  : float = 5;
 }
 
 

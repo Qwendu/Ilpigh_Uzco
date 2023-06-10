@@ -1,6 +1,6 @@
 #scope_export
 
-ASSERT_VALID_STATE :: true;
+ASSERT_VALID_STATE :: false;
 PRINT_VALID_STATES :: false;
 
 

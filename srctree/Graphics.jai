@@ -24,6 +24,7 @@ draw :: (args :*Draw_Args) #c_call
 	plt : *Platform = args.plt;
 
 	draw_context := Context.{};
+	draw_context.logger = draw_logger;
 	push_context,defer_pop draw_context;
 	output : Output;
 
@@ -32,21 +33,25 @@ draw :: (args :*Draw_Args) #c_call
 	output.command_buffer_writer = command_writer;
 	atomic_write(*args.output, *output);
 
+	material_1 := Material.{};
+	material_1.color = .{0,1,0,0};
+
 	m1 := array_add(*loaded_meshes);
-	m1.matrix = identity(4, float);
+	m1.material = .{.{1,0,0, 0}};
 	m1.vertices = .[
 		.{0,0,-1},
 		.{1,0,-1},
 		.{0,1,-1},
-		.{0,0,0}
+		//.{0,0,0}
 	];
 	m1.triangles = .[
 		.{0,1,2},
-		.{0,3,1}
+		//.{0,3,1}
 	];
+	m1.aabb = generate_AABB_Of_Mesh(m1);
 
 	m2 := array_add(*loaded_meshes);
-	m2.matrix = identity(4, float);
+	m2.material = .{.{0,1,0, 0}};;
 	m2.vertices = .[
 		.{-1, 0,-1},
 		.{ 1, 0,-1},
@@ -57,14 +62,13 @@ draw :: (args :*Draw_Args) #c_call
 		.{0,1,2},
 		.{1,3,2}
 	];
+	m2.aabb = generate_AABB_Of_Mesh(m2);
 
 	while atomic_read(args.exit) == 0
 	{
 		buffer : *Draw_Buffer = get_Read_Pointer(command_reader);
 		render_Triangles_In_Draw_Buffer(plt, buffer);
 
-
-		
 		
 		before := current_time_monotonic();
 		plt.update_Window(plt.window);
@@ -104,6 +108,24 @@ Model_Instance :: struct
 #scope_file
 
 
+draw_logger :: (message : string, data : *void, info : Log_Info)
+{
+	print("[RENDER] %\n", message);
+}
+
+
+
+Shader_Input :: struct
+{
+	position    : float3;
+	material    : Material;
+};
+
+Shader_Output :: struct
+{
+	color : Color;
+};
+
 
 Draw_Buffer :: struct
 {
@@ -123,12 +145,107 @@ loaded_meshes : [..] Mesh;
 
 
 
-depth_buffer : [] float;
+
 
 
 render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 {
+	log("% Instances", draw_buffer.n_instances);
+	bb := plt.get_BackBuffer(plt.window);
+	aspect : float = bb.size.x/cast(float)bb.size.y;
 
+	camera := *draw_buffer.camera;
+	world_to_camera := world_To_Camera(camera);
+	projection := projection_Matrix(fov = camera.fov, aspect = aspect, near = camera.near, far = camera.far);
+
+	Active_Instance :: struct
+	{
+		instance_to_projection : float4x4;
+		mesh_ptr : * Mesh;
+	}
+	
+	active_meshes : [..] Active_Instance;
+	defer array_reset(*active_meshes);
+	array_reserve(*active_meshes, 100);
+
+	outcode :: (v : float3) -> u8
+	{
+		res : u8;
+		// -z +z -y +y -x +x
+		res += ((cast(u8) (v.x >  1)) & 1) << 0;
+		res += ((cast(u8) (v.x < -1)) & 1) << 1;
+		res += ((cast(u8) (v.y >  1)) & 1) << 2;
+		res += ((cast(u8) (v.y < -1)) & 1) << 3;
+		res += ((cast(u8) (v.z >  1)) & 1) << 4;
+		res += ((cast(u8) (v.z <  0)) & 1) << 5;
+		
+		return res;
+	}
+	
+	for 0..draw_buffer.n_instances-1
+	{
+		instance := *draw_buffer.instances[it];
+		mesh     := *loaded_meshes[instance.id];
+		corners_mesh  :=  aabb_To_Corners(mesh.aabb);
+		instance_to_projection := projection * world_to_camera * instance.model_to_world;
+		n_outside := 0;
+
+		for corners_mesh
+		{
+			proj := project_Point(instance_to_projection, it);
+			if outcode(proj.xyz) != 0
+			{
+				n_outside += 1;
+			}
+		}
+		if n_outside != 8
+		{
+			active := array_add(*active_meshes);
+			active.instance_to_projection = instance_to_projection;
+			active.mesh_ptr = mesh;
+		}
+	}
+	log("% Active Instances", active_meshes.count);
+	
+
+	n_vertices := 0;
+	for active_meshes
+	{
+		n_vertices += it.mesh_ptr.triangles.count * 3;
+	}
+	log("Vertex Buffer Size = %", n_vertices);
+	transformed_vertices := NewArray(n_vertices, float3);
+	vertex_base := 0;
+	for active_meshes
+	{
+		idx := vertex_base;
+		for triangle, triangle_idx : it.mesh_ptr.triangles
+		{
+			transformed_vertices[idx + 0] = project_Point(it.instance_to_projection, it.mesh_ptr.vertices[triangle.x]).xyz;
+			transformed_vertices[idx + 1] = project_Point(it.instance_to_projection, it.mesh_ptr.vertices[triangle.y]).xyz;
+			transformed_vertices[idx + 2] = project_Point(it.instance_to_projection, it.mesh_ptr.vertices[triangle.z]).xyz;
+			idx += 3;
+			// TODO Clipping
+		}
+		vertex_base = idx;
+	}
+	log("% Triangles are being rasterized", vertex_base/3);
+}
+
+
+
+
+
+depth_buffer : [] float;
+shader_buffer : [] Shader_Input;
+
+OLD_render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
+{
+	print("[RENDER] draw_buffer.n_instances = %\n", draw_buffer.n_instances);
+	if draw_buffer.n_instances == 0
+	{
+		draw_buffer.n_instances += 1;
+	}
 	bb := plt.get_BackBuffer(plt.window);
 	aspect : float = bb.size.x/cast(float)bb.size.y;
 	{
@@ -142,11 +259,25 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			depth_buffer.count = 0;
 			depth_buffer = NewArray(bb.stride * bb.size.y, float);
 		}
+		if !shader_buffer
+		{
+			shader_buffer = NewArray(bb.stride * bb.size.y, Shader_Input);
+		}
+		if shader_buffer.count != bb.stride * bb.size.y
+		{
+			free(shader_buffer.data);
+			shader_buffer.count = 0;
+			shader_buffer = NewArray(bb.stride * bb.size.y, Shader_Input);
+		}
 
 		memset(bb.data, 0, size_of(Pixel) * bb.stride * bb.size.y); // Clear Backbuffer
 		for *depth_buffer
 		{
 			<<it = 1;
+		}
+		for *shader_buffer
+		{
+			<<it = .{};
 		}
 	}
 
@@ -162,11 +293,13 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 
 	for instance_idx:  0..draw_buffer.n_instances-1
 	{
+
 		instance       := *draw_buffer.instances[instance_idx];
 		mesh           := *loaded_meshes[instance.id];
 		model_to_world :=  instance.model_to_world;
+		print("%\n", model_to_world);
 		add_Offset(*model_to_world, instance.velocity * delta);
-		mesh_to_world  := model_to_world * mesh.matrix;
+		mesh_to_world  := model_to_world;
 	
 		mesh_to_projection := world_to_projection * mesh_to_world;
 
@@ -246,7 +379,10 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 							depth_linear := l_0 * w_0 + l_1 * w_1 + l_2 * w_2;
 							depth_buffer[y_off * bb.stride + x_off] = depth;
 							depth_color := 255 - cast(u8)clamp(depth_linear/far * 255, 0, 255);
-							bb.data[y_off * bb.stride + x_off] = .{r = depth_color, g = depth_color, b = depth_color, a = 0xFF};
+							in : Shader_Input;
+							in.position = (a_mesh * l_0) + (b_mesh * l_1) + (c_mesh * l_2);
+							in.material = mesh.material;
+							shader_buffer[y_off * bb.stride + x_off] = in;
 						}
 					}
 				}
@@ -301,10 +437,30 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			}
 		}
 	}
+
+	for y : 0..bb.size.y-1
+	{
+		for x : 0..bb.size.x-1
+		{
+			if depth_buffer[y * bb.stride + x] == 1  continue;
+			color := shader_1(shader_buffer[y * bb.stride + x]).color;
+			pxl := Pixel.{};
+			pxl.r = cast(u8)clamp(color.r * 255, 0, 255);
+			pxl.g = cast(u8)clamp(color.g * 255, 0, 255);
+			pxl.b = cast(u8)clamp(color.b * 255, 0, 255);
+			bb.data[y * bb.stride + x] = pxl;
+		}
+	}
+	
 }
 
 
-
+shader_1 :: (in : Shader_Input) -> Shader_Output
+{
+	out : Shader_Output;
+	out.color = in.material.color;
+	return out;
+}
 
 
 
@@ -323,3 +479,6 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 #import "Matrix";
 #import "Camera";
 #import "Math";
+#import "Color";
+#import "Material";
+#import "AABB";

@@ -49,7 +49,7 @@ dot :: (a : $V/Vector, b : V) -> V.T
 }
 
 
-operator + :: (a : $V/Vector, b : V) -> V
+operator + :: (a : $V/Vector, b : V) -> V #symmetric
 {
 	r := a;
 	for r.data  r.data[it_index] += b.data[it_index];

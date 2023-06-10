@@ -1,7 +1,7 @@
 #import "Common";
 
 
-PHYSICS_FREQUENCY :: 50;
+PHYSICS_FREQUENCY :: 10;
 
 #program_export
 game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
@@ -28,20 +28,34 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	ticks_since_start : int = 0;
 
 	ms_pause : int =  1000/PHYSICS_FREQUENCY;
+	pos :float3 = .{z = 0};
 	
 	draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
 	while atomic_read(*platform.exit) == 0
 	{
 		Frame();
+		draw_buffer.submission_time = current_time_monotonic();
+		draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);
+
 		clear_Instances(draw_buffer);
+
+		pos += .{0.1, 0,0};
+		if pos.x > 1.3  pos.x = -1.3;
+
+		print("Pos = %\n", pos);
+		
+
 
 
 		mat := identity(4, float);
+		add_Offset(*mat, pos);
 
 		instance_1 := Model_Instance.{id = 0, model_to_world = mat};
 		instance_2 := Model_Instance.{id = 1, model_to_world = identity(4, float)};
 
 		add_Mesh(draw_buffer, instance_1);
+		add_Mesh(draw_buffer, instance_2);
+		add_Offset(*instance_2.model_to_world, .{10, 10, 10});
 		add_Mesh(draw_buffer, instance_2);
 
 		draw_buffer.camera.position = .{0,1,.1};
@@ -52,10 +66,13 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		rotation := yaw * pitch ;
 		
 		draw_buffer.camera.rotation = rotation;
+		draw_buffer.camera.position = .{0,0,2};
 		
 
-		draw_buffer.submission_time = current_time_monotonic();
-		draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);
+		print("[PHYSICS] draw_buffer.n_instances = %\n", draw_buffer.n_instances);
+		//draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);// @Bug Having this here instead of at the beginning of the loop triggers a bug?
+
+
 		platform.sleep(ms_pause);
 	}
 
