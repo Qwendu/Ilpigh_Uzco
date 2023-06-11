@@ -43,10 +43,10 @@ get_Read_Pointer :: (end : $Buffer/Async_Buffer_End) -> *Buffer.Element
 			if success  break;
 		}
 		#if ASSERT_VALID_STATE  assert(valid(Pointers_Struct.{cr_cw_nr = atomic_read(*buffer.pointers.cr_cw_nr)}));
-		return *buffer.buffers[atomic_read(*buffer.pointers).next_read].element;
+		return *buffer.buffers[atomic_read(*buffer.pointers).current_read].element;
 	}else{
 		// IF we are the writer then we do not advance in order to read!
-		return *buffer.buffers[atomic_read(*buffer.pointers).next_read].element;
+		return *buffer.buffers[atomic_read(*buffer.pointers).current_read].element;
 	}
 }
 
@@ -64,7 +64,7 @@ get_Write_Pointer :: (end : $Buffer/Async_Buffer_End) -> *Buffer.Element
 		if success  break;
 	}
 	#if ASSERT_VALID_STATE  assert(valid(Pointers_Struct.{cr_cw_nr = atomic_read(*buffer.pointers.cr_cw_nr)}));
-	return *buffer.buffers[atomic_read(*buffer.pointers).next_read].element;
+	return *buffer.buffers[atomic_read(*buffer.pointers).current_write].element;
 }
 
 #scope_file

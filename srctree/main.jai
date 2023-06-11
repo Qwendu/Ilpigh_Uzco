@@ -1,18 +1,19 @@
 #import "Common";
 
 
-PHYSICS_FREQUENCY :: 10;
+PHYSICS_FREQUENCY :: 2;
 
 #program_export
 game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 {
-
 	if !platform_init return;
 	platform = platform_init;
 	c : Context;
 	c.allocator = platform.general_heap;
+	c.logger = logger;
 
 	push_context,defer_pop c;
+	STARTUP_TIME = current_time_monotonic();
 
 	
 	draw_thread_exit : int = 0;
@@ -28,21 +29,24 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	ticks_since_start : int = 0;
 
 	ms_pause : int =  1000/PHYSICS_FREQUENCY;
-	pos :float3 = .{x = -0.1, y = -0.1,z = 0};
+	pos :float3 = .{x = -0.1, y = -0.1,z = 1};
 	
 	draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
+	t := 0;
 	while atomic_read(*platform.exit) == 0
 	{
 		Frame();
-		draw_buffer.submission_time = current_time_monotonic();
-		draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);
+		input := platform.get_Input(platform.window);
 
-		clear_Instances(draw_buffer);
+
+		t += 1;
+		draw_buffer.submission_time = current_time_monotonic();
+
+
 
 		//pos += .{0.1, 0,0};
 		if pos.x > 1.3  pos.x = -1.3;
 
-		print("Pos = %\n", pos);
 		
 
 
@@ -54,23 +58,24 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		instance_2 := Model_Instance.{id = 1, model_to_world = identity(4, float)};
 
 		add_Mesh(draw_buffer, instance_1);
-		add_Mesh(draw_buffer, instance_2);
-		add_Offset(*instance_2.model_to_world, .{10, 10, 10});
-		add_Mesh(draw_buffer, instance_2);
+		//add_Mesh(draw_buffer, instance_2);
+		add_Offset(*instance_1.model_to_world, .{y = -0.1 ,z = -2});
+		add_Mesh(draw_buffer, instance_1);
 
 		draw_buffer.camera.position = .{0,1,.1};
 
-		delta :float = -0.12;
+		delta :float = ((t % 20)-10)/100.0;
+		log("delta %", delta);
 		pitch := rotation_Around_Axis(.{-1,0,0}, delta * PI);
-		yaw   := rotation_Around_Axis(.{0,1,0}, delta * 0 * PI);
+		yaw   := rotation_Around_Axis(.{0,1,0},  delta * PI);
 		rotation := yaw * pitch ;
 		
 		draw_buffer.camera.rotation = rotation;
-		draw_buffer.camera.position = .{0,0,2};
+		//draw_buffer.camera.position = pos;
 		
 
-		print("[PHYSICS] draw_buffer.n_instances = %\n", draw_buffer.n_instances);
-		//draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);// @Bug Having this here instead of at the beginning of the loop triggers a bug?
+		draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);
+		clear_Instances(draw_buffer);
 
 
 		platform.sleep(ms_pause);
@@ -81,6 +86,12 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	{}
 	
 	atomic_write(*platform.exit, 0);
+}
+
+logger :: (message : string, data : *void, info : Log_Info)
+{
+	now := current_time_monotonic() - STARTUP_TIME;
+	print("[PHYSICS]+%: %\n", to_milliseconds(now),message);
 }
 
 

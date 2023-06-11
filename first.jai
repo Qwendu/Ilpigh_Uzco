@@ -33,7 +33,7 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 		array_add(*import, platform_modules);
 		array_add(*import,          modules);
 		options_platform.import_path = import; 
-		Jai.set_optimization(*options_platform, .VERY_DEBUG);
+		Jai.set_optimization(*options_platform, .DEBUG);
 
 		Jai.set_build_options(options_platform    , workspace_platform);
 	}
@@ -45,7 +45,7 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 		options_game.output_path = "binaries";
 		options_game.dead_code_elimination = .NONE;
 
-		Jai.set_optimization(*options_game, .VERY_DEBUG);
+		Jai.set_optimization(*options_game, .DEBUG);
 
 		import : [..] string;
 		array_add(*import, ..options_platform.import_path); // We need this for RuntimeSupport

@@ -81,7 +81,11 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 			,  hInstance  = main_window.module
 			,  lpParam    = null
 		);
-		if !main_window.handle  log_error("[ERROR] Failed to create window\nReason :%", GetLastError());
+		if !main_window.handle
+		{
+			log_error("[ERROR] Failed to create window\nReason :%", GetLastError());
+			return null;
+		}
 		main_window.device_context = GetDC(main_window.handle);
 		update := UpdateWindow(main_window.handle);
 		ShowWindow(main_window.handle, SW_SHOW);
@@ -224,6 +228,14 @@ try_Close :: (window : *Window_Info)
 sleep :: (duration_ms : int) #c_call
 {
 	Sleep(xx duration_ms);
+}
+
+get_Input :: (window : Window) -> Input #c_call
+{
+	win := cast(*Window_Info)window;
+	push_context,defer_pop win.window_context;
+	log("Called Input");
+	return .{};
 }
 
 
