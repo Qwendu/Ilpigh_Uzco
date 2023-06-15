@@ -2,7 +2,7 @@
 #load "../platform/interface.jai";
 
 
-IGNORE_INPUT :: true;
+IGNORE_INPUT :: false;
 
 
 #import "Basic";

@@ -196,8 +196,15 @@ loaded_meshes : [..] Mesh;
 
 
 
-
-screen2 :: Vector(2, s32 /*fixed_point 26.6*/);
+FIXEDPOINT :bool: false;
+#if FIXEDPOINT
+{
+	#run print("FIXEDPOINT Renderer\n");
+	screen2 :: Vector(2, s32 /*fixed_point 26.6*/);
+}else{
+	#run print("FLOATINGPOINT Renderer\n");
+	screen2 :: float2;
+}
 
 
 depth_buffer : [] float;
@@ -309,18 +316,28 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	if n_vertices > vertices_screen.count  array_resize(*vertices_screen, n_vertices);
 	if n_vertices > depth_screen   .count  array_resize(*depth_screen,    n_vertices);
 	
-	FIXEDPOINT_BITS :: 8;
-	FIXEDPOINT_MASK :: (1<<FIXEDPOINT_BITS)-1;
-	FIXEDPOINT_ONE  ::  1<<FIXEDPOINT_BITS;
+	#if FIXEDPOINT
+	{
+		FIXEDPOINT_BITS :: 8;
+		FIXEDPOINT_MASK :: (1<<FIXEDPOINT_BITS)-1;
+		FIXEDPOINT_ONE  ::  1<<FIXEDPOINT_BITS;
+	}else{
+		FIXEDPOINT_ONE :float: 1.0;
+	}
 	
 
-	det_2d :: (a :screen2, b: screen2, p : screen2) -> s32
+	det_2d :: (a :screen2, b: screen2, p : screen2) -> type_of(screen2.x)
 	{
-		return ((b.x-a.x)*(p.y-a.y)>>FIXEDPOINT_BITS) - ((b.y-a.y)*(p.x-a.x)>>FIXEDPOINT_BITS);
+		#if FIXEDPOINT
+		{
+			return ((b.x-a.x)*(p.y-a.y) - (b.y-a.y)*(p.x-a.x)) >>FIXEDPOINT_BITS;
+		}else{
+			return (b.x-a.x)*(p.y-a.y) - (b.y-a.y)*(p.x-a.x);
+		}
 	}
 
-	factor_x := cast(s32)FIXEDPOINT_ONE * bb.size.x;
-	factor_y := cast(s32)FIXEDPOINT_ONE * bb.size.y;
+	factor_x := cast(type_of(screen2.x))FIXEDPOINT_ONE * bb.size.x;
+	factor_y := cast(type_of(screen2.x))FIXEDPOINT_ONE * bb.size.y;
 	vertex_base := 0;
 	for active_meshes
 	{
@@ -345,9 +362,9 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		
 
 			half :: screen2.{FIXEDPOINT_ONE/2, FIXEDPOINT_ONE/2};
-			a_s := screen2.{cast(s32) (a.x * factor_x), cast(s32) (a.y * factor_y)};
-			b_s := screen2.{cast(s32) (b.x * factor_x), cast(s32) (b.y * factor_y)};
-			c_s := screen2.{cast(s32) (c.x * factor_x), cast(s32) (c.y * factor_y)};
+			a_s := screen2.{cast(type_of(screen2.x)) (a.x * factor_x), cast(type_of(screen2.x)) (a.y * factor_y)};
+			b_s := screen2.{cast(type_of(screen2.x)) (b.x * factor_x), cast(type_of(screen2.x)) (b.y * factor_y)};
+			c_s := screen2.{cast(type_of(screen2.x)) (c.x * factor_x), cast(type_of(screen2.x)) (c.y * factor_y)};
 
 			if det_2d(a_s, b_s, c_s) == 0  continue triangle; // dont rasterize 0 area triangles
 
@@ -380,26 +397,38 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		c := vertices_screen[triangle_start + 2];
 		area_2 := det_2d(a, b, c);
 		min_tri  := screen2.{min(a.x, b.x, c.x), min(a.y, b.y, c.y)};
-		min_tri.x = cast(s32) max((-bb.size.x << FIXEDPOINT_BITS)/2, min_tri.x);
-		min_tri.y = cast(s32) max((-bb.size.y << FIXEDPOINT_BITS)/2, min_tri.y);
+		min_tri.x = cast(type_of(screen2.x)) max((-bb.size.x * FIXEDPOINT_ONE)/2, min_tri.x);
+		min_tri.y = cast(type_of(screen2.x)) max((-bb.size.y * FIXEDPOINT_ONE)/2, min_tri.y);
 
 		max_tri := screen2.{max(a.x, b.x, c.x), max(a.y, b.y, c.y)};
-		max_tri.x = cast(s32) min(( bb.size.x << FIXEDPOINT_BITS)/2, max_tri.x);
-		max_tri.y = cast(s32) min(( bb.size.y << FIXEDPOINT_BITS)/2, max_tri.y);
+		max_tri.x = cast(type_of(screen2.x)) min(( bb.size.x * FIXEDPOINT_ONE)/2, max_tri.x);
+		max_tri.y = cast(type_of(screen2.x)) min(( bb.size.y * FIXEDPOINT_ONE)/2, max_tri.y);
 
 		pxl := min_tri;
-		pxl.x = cast(s32) (pxl.x + FIXEDPOINT_MASK) & ~FIXEDPOINT_MASK;
-		pxl.y = cast(s32) (pxl.y + FIXEDPOINT_MASK) & ~FIXEDPOINT_MASK;
+		round :: (p : screen2) -> screen2
+		{
+			res := p;
+			#if FIXEDPOINT
+			{
+				res.x = xx (res.x + FIXEDPOINT_MASK) & ~FIXEDPOINT_MASK;
+				res.y = xx (res.y + FIXEDPOINT_MASK) & ~FIXEDPOINT_MASK;
+			}else{
+				res.x = cast(float)cast(s32)res.x;
+				res.y = cast(float)cast(s32)res.y;
+			}
+			return res;
+		}
+		pxl = round(pxl);
 		start := pxl;
 
 		isTopLeft :: (a : screen2, b : screen2) -> bool
 		{
 			return (a.y == b.y && a.x > b.x) || a.y > b.y;
 		}
-
-		det_0_base := det_2d(a,b,pxl);// + ifx isTopLeft(a,b) then 0 else FIXEDPOINT_ONE;
-		det_1_base := det_2d(b,c,pxl);// + ifx isTopLeft(b,c) then 0 else FIXEDPOINT_ONE;
-		det_2_base := det_2d(c,a,pxl);// + ifx isTopLeft(c,a) then 0 else FIXEDPOINT_ONE;
+	
+		det_0_base := det_2d(a,b,pxl);
+		det_1_base := det_2d(b,c,pxl);
+		det_2_base := det_2d(c,a,pxl);
 
 		det_0_delta := b-a;
 		det_1_delta := c-b;
@@ -417,11 +446,11 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		u_delta := depth_1 - depth_0;
 		v_delta := depth_2 - depth_0;
 
-		y_off := (pxl.y + cast(s32)bb.size.y * FIXEDPOINT_ONE / 2) >> FIXEDPOINT_BITS;
+		y_off := cast(int)((pxl.y + cast(s32)bb.size.y * FIXEDPOINT_ONE / 2) / FIXEDPOINT_ONE);
 		while pxl.y < max_tri.y
 		{
 			pxl.x = start.x;
-			x_off := (pxl.x + cast(s32)bb.size.x * FIXEDPOINT_ONE / 2) >> FIXEDPOINT_BITS;
+			x_off := cast(int)((pxl.x + cast(s32)bb.size.x * FIXEDPOINT_ONE / 2) / FIXEDPOINT_ONE);
 
 			det_0_saved := det_0;
 			det_1_saved := det_1;
