@@ -31,7 +31,7 @@ draw :: (args :*Draw_Args) #c_call
 	command_reader, command_writer := get_Ends(*command_buffer);
 
 	output.command_buffer_writer = command_writer;
-	atomic_write(*args.output, *output);
+	atomic_volatile_write(*args.output, *output);
 
 	material_1 := Material.{};
 	material_1.color = .{0,1,0,0};
@@ -39,7 +39,7 @@ draw :: (args :*Draw_Args) #c_call
 	m1 := array_add(*loaded_meshes);
 	m1.material = .{.{1,0,0, 0}};
 	m1.vertices = .[
-		.{0,0,-1},
+		.{-1,0,-1},
 		.{1,0,-1},
 		.{0,1,-1},
 		//.{0,0,0}
@@ -64,7 +64,20 @@ draw :: (args :*Draw_Args) #c_call
 	];
 	m2.aabb = generate_AABB_Of_Mesh(m2);
 
-	while atomic_read(args.exit) == 0
+	floor_tile := array_add(*loaded_meshes);
+	floor_tile.material = .{.{0.2,.2,.2,1}};
+	floor_tile.vertices = .[
+		.{0,1,1},
+		.{1,1,1},
+		.{0,0,1},
+		.{1,0,1},
+	];
+	floor_tile.triangles = .[
+		.{0,3,1},
+		.{0,2,3}
+	];
+
+	while atomic_volatile_read(args.exit) == 0
 	{
 		buffer : *Draw_Buffer = get_Read_Pointer(command_reader);
 		render_Triangles_In_Draw_Buffer(plt, buffer);
@@ -76,7 +89,7 @@ draw :: (args :*Draw_Args) #c_call
 		after := current_time_monotonic();
 	}
 
-	atomic_write(args.exit, 0);
+	atomic_volatile_write(args.exit, 0);
 
 }
 
@@ -88,6 +101,8 @@ add_Mesh :: (buffer : *Draw_Buffer, instance : Model_Instance)
 	{
 		instances[n_instances] = instance;
 		n_instances += 1;
+	}else{
+		log_error("Too many meshes got queued!");
 	}
 }
 
@@ -101,8 +116,6 @@ Model_Instance :: struct
 {
 	id : int;
 	model_to_world : float4x4;
-	velocity : float3;
-	draw_lines : bool;
 };
 
 #scope_file
@@ -110,7 +123,7 @@ Model_Instance :: struct
 
 draw_logger :: (message : string, data : *void, info : Log_Info)
 {
-	now := current_time_monotonic() - STARTUP_TIME;
+	now := current_time_monotonic() - context.STARTUP_TIME;
 	print("[RENDER]+%: %\n", to_milliseconds(now), message);
 }
 
@@ -119,6 +132,7 @@ draw_logger :: (message : string, data : *void, info : Log_Info)
 Shader_Input :: struct
 {
 	uv : float2;
+	depth : float;
 	material    : Material;
 };
 
@@ -134,7 +148,7 @@ Draw_Buffer :: struct
 
 	
 	n_instances : int;
-	instances  : [300] Model_Instance;
+	instances  : [600] Model_Instance;
 
 	camera : Camera;
 };
@@ -153,18 +167,22 @@ shader_buffer : [] Shader_Input;
 
 render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 {
+	LOG_CLIPPING :: false;
+	LOG_CULLING  :: false;
+
+
 	start := current_time_monotonic();
 	defer
 	{
 		end := current_time_monotonic();
-		log("rendertime %ms", to_milliseconds(end-start));
+		//log("rendertime %ms", to_milliseconds(end-start));
 	}
 	
 	bb := plt.get_BackBuffer(plt.window);
 	aspect : float = bb.size.x/cast(float)bb.size.y;
 
 	//
-	// Reset Buffers Depoth, Shader, Pixel
+	// Reset Buffers Depth, Shader, Pixel
 	//
 	{
 		n_elements := bb.size.y * bb.stride;
@@ -208,7 +226,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		res += ((cast(u8) (v.y >  1)) & 1) << 2;
 		res += ((cast(u8) (v.y < -1)) & 1) << 3;
 		res += ((cast(u8) (v.z >  1)) & 1) << 4;
-		res += ((cast(u8) (v.z <  0)) & 1) << 5;
+		res += ((cast(u8) (v.z < -1)) & 1) << 5;
 		
 		return res;
 	}
@@ -234,6 +252,8 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			active := array_add(*active_meshes);
 			active.instance_to_projection = instance_to_projection;
 			active.mesh_ptr = mesh;
+		}else{
+			#if LOG_CULLING log("Culled instance %", it);
 		}
 	}
 	//log("% Active Instances", active_meshes.count);
@@ -249,7 +269,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	vertices_screen := NewArray(n_vertices,            Vector(2, s32));
 	depth\  _screen := NewArray(vertices_screen.count, float);
 	
-	FIXEDPOINT_BITS :: 4;
+	FIXEDPOINT_BITS :: 8;
 	FIXEDPOINT_MASK :: (1<<FIXEDPOINT_BITS)-1;
 	FIXEDPOINT_ONE  ::  1<<FIXEDPOINT_BITS;
 	
@@ -275,12 +295,16 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			b_out := outcode(b);
 			c_out := outcode(c);
 
-			if a_out != 0 || b_out != 0 || c_out != 0  continue triangle;
+			if a_out != 0 && b_out != 0 && c_out != 0 
+			{
+				#if LOG_CLIPPING log("Clipping Triangle %:% [% % %]", it_index, triangle_idx, a_out, b_out, c_out);
+				continue triangle;
+			}
 
 			// TODO(Qwendo): Clipping
 		
 
-
+			half :: screen2.{FIXEDPOINT_ONE/2, FIXEDPOINT_ONE/2};
 			a_s := screen2.{cast(s32) (a.x * factor_x), cast(s32) (a.y * factor_y)};
 			b_s := screen2.{cast(s32) (b.x * factor_x), cast(s32) (b.y * factor_y)};
 			c_s := screen2.{cast(s32) (c.x * factor_x), cast(s32) (c.y * factor_y)};
@@ -297,7 +321,6 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			
 			
 			idx += 3;
-			// TODO Clipping
 		}
 		vertex_base = idx;
 	}
@@ -329,21 +352,27 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		pxl.y = cast(s32) (pxl.y + FIXEDPOINT_MASK) & ~FIXEDPOINT_MASK;
 		start := pxl;
 
-		det_0_base := det_2d(a,b,pxl);
-		det_1_base := det_2d(b,c,pxl);
-		det_2_base := det_2d(c,a,pxl);
+		isTopLeft :: (a : screen2, b : screen2) -> bool
+		{
+			return (a.y == b.y && a.x > b.x) || a.y > b.y;
+		}
+
+		det_0_base := det_2d(a,b,pxl);// + ifx isTopLeft(a,b) then 0 else FIXEDPOINT_ONE;
+		det_1_base := det_2d(b,c,pxl);// + ifx isTopLeft(b,c) then 0 else FIXEDPOINT_ONE;
+		det_2_base := det_2d(c,a,pxl);// + ifx isTopLeft(c,a) then 0 else FIXEDPOINT_ONE;
 
 		det_0_delta := b-a;
 		det_1_delta := c-b;
 		det_2_delta := a-c;
 
+
 		det_0 := det_0_base;
 		det_1 := det_1_base;
 		det_2 := det_2_base;
 
-		depth_0 := depth_screen[triangle_start + 0];
-		depth_1 := depth_screen[triangle_start + 1];
-		depth_2 := depth_screen[triangle_start + 2];
+		depth_1 := depth_screen[triangle_start + 0];
+		depth_2 := depth_screen[triangle_start + 1];
+		depth_0 := depth_screen[triangle_start + 2];
 
 		u_delta := depth_1 - depth_0;
 		v_delta := depth_2 - depth_0;
@@ -361,10 +390,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 
 			while pxl.x < max_tri.x
 			{
-				if det_0 < 0 || det_1 < 0 || det_2 < 0
-				{
-
-				}else{
+				if(det_0 >= 0 && det_1 >= 0 && det_2 >= 0) {
 					// inside the triangle
 					u := det_1/cast(float)area_2;
 					v := det_2/cast(float)area_2;
@@ -372,9 +398,9 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 					if depth < depth_buffer[y_off * bb.stride + x_off]
 					{
 						depth_buffer[y_off * bb.stride + x_off] = depth;
-						depth_u8 := cast(u8)clamp((1 - depth) * 255,0, 255);
 						input := Shader_Input.{
-							uv = .{u,v}
+							uv = .{u,v},
+							depth = depth
 						};
 						shader_buffer[y_off * bb.stride + x_off] = input;
 					}
@@ -401,29 +427,33 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		for x:0..bb.size.x-1
 		{
 			if depth_buffer[y * bb.stride + x] == 1 continue x;
-			out := shader_1(shader_buffer[y * bb.stride + x]);
+			out := depth_shader(shader_buffer[y * bb.stride + x]);
 			color := out.color.vec * 255.0;
 			pixel := Pixel.{r = xx clamp(color.x, 0, 255), g = xx clamp(color.y, 0, 255), b = xx clamp(color.z, 0, 255)};
 
 			bb.data[y * bb.stride + x] = pixel;
 		}
 	}
-	
-	log("%ms", to_milliseconds(current_time_monotonic()-start));
 }
 
 
-shader_1 :: (in : Shader_Input) -> Shader_Output
+depth_shader :: (in : Shader_Input) -> Shader_Output
 {
 	using in;
-	start := Color.{r=1};
-	u_ := Color.{g=1};
-	v_ := Color.{b=1};
+	start := Color.{r=1, g=1, b=1};
 	out : Shader_Output;
-	out.color = .{vec = start.vec + uv.x * u_.vec + uv.y * v_.vec};
+	out.color = .{vec = start.vec * sqrt(1 - in.depth)};
 	return out;
 }
 
+color_shader :: (in : Shader_Input) -> Shader_Output
+{
+	using in;
+
+	out : Shader_Output;
+	out.color = material.color;
+	return out;
+}
 
 
 
@@ -444,3 +474,4 @@ shader_1 :: (in : Shader_Input) -> Shader_Output
 #import "Color";
 #import "Material";
 #import "AABB";
+#import "Sync";

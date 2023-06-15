@@ -1,6 +1,6 @@
 #scope_export
-#load "../interface.jai";
-INTERFACE :: #import,file "../interface.jai";
+
+#import "Common";
 
 Window_Info :: struct
 {
@@ -14,10 +14,23 @@ Window_Info :: struct
 	wnd_Proc       : *void;
 	device_context : HDC;
 	window_context : Context;
-	exit           : bool;
+	active : bool;
+	input_devices : struct {
+		//@WM_INPUT
+		keyboard: RAWINPUTDEVICE;
+		mouse   : RAWINPUTDEVICE;
+	};
+	raw_input_buffer : [..] u8;
+	
+	
+
+	input : Mutex(Input);
+
+	exit           : bool; @Atomic;
+	clear_input    : bool; @Atomic;
 };
 
-active_windows : [..] Window_Info;
+active_windows : Bucket_Array(Window_Info, 20);
 active_threads : [..] Thread_Info;
 
 
@@ -26,9 +39,8 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 	//
 	// Window Creation
 	//
-	c =  context;
-	main_window : *Window_Info = array_add(*active_windows);
-	main_window.window_context = c;
+	main_window : *Window_Info = find_and_occupy_empty_slot(*active_windows);
+	main_window.window_context = context;
 	{
 		main_window.class_name = sprint("WC_%\0", display_name);
 		main_window.module     = GetModuleHandleW(null);
@@ -49,7 +61,7 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 		register_result := RegisterClassExW(*main_window.window_class);
 		if register_result == 0
 		{
-			log_error("Failed to register window class %\n", main_window.window_class);
+			log_error("Failed to register window class %", main_window.window_class);
 			return null;
 		}
 		style := WS_OVERLAPPEDWINDOW & ~WS_SIZEBOX;
@@ -62,9 +74,9 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 		rect.bottom = xx size.y;
 		extended_style : int = 0;
 		AdjustWindowRectEx(*rect, xx style, 0, xx extended_style);
-		print("Adjusted rect %\n", rect);
+		log("Adjusted rect %", rect);
 		main_window.size = .{rect.right - rect.left, rect.bottom - rect.top};
-		print("%\n", main_window.size);
+		log("Window Size %", main_window.size);
 
 		main_window.handle = CreateWindowExW
 		(
@@ -83,10 +95,43 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 		);
 		if !main_window.handle
 		{
-			log_error("[ERROR] Failed to create window\nReason :%", GetLastError());
+			log_error("Failed to create window\nReason :%", GetLastError());
 			return null;
 		}
 		main_window.device_context = GetDC(main_window.handle);
+
+
+
+	}
+
+
+	//
+	// Register Raw Input
+	//
+	{
+		using main_window.input_devices;
+		keyboard.usUsagePage = 1;
+		keyboard.usUsage     = 6;
+		keyboard.dwFlags     = 0;
+		keyboard.hwndTarget = main_window.handle;
+
+		mouse.usUsagePage = 1;
+		mouse.usUsage     = 2;
+		mouse.dwFlags     = 0;
+		mouse.hwndTarget = main_window.handle;
+	
+		res := RegisterRawInputDevices(*main_window.input_devices, 2, size_of(RAWINPUTDEVICE));
+		if res == 0  // @WM_INPUT
+		{
+			log_error("Failed to create Input devices %\nReason :%",res, GetLastError());
+		}
+
+	}
+
+	//
+	// Create Bitmap for the Window and update it
+	//
+	{
 		update := UpdateWindow(main_window.handle);
 		ShowWindow(main_window.handle, SW_SHOW);
 
@@ -97,16 +142,15 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 			x = drawable_area.right - drawable_area.left, 
 			y = drawable_area.bottom - drawable_area.top
 		});
-		
 	}
 	return main_window;
 }
 
 update_Window :: (window : *Window_Info) #c_call
 {
-	atomic_write(*window.bitmap.wait_for_blit, 1);
+	atomic_volatile_write(*window.bitmap.wait_for_blit, 1);
 	RedrawWindow(window.handle, null, null, RDW_INVALIDATE | RDW_UPDATENOW);
-	while atomic_read(*window.bitmap.wait_for_blit) == 1
+	while atomic_volatile_read(*window.bitmap.wait_for_blit) == 1
 	{
 
 	}
@@ -137,7 +181,7 @@ load_Dynamic_Library :: (dll_name : string) -> DLL
 	if !dll.module
 	{
 		err := GetLastError();
-		print("Failed load with %\n", err);
+		log_error("Failed load with error %", err);
 	}
 	return dll;
 }
@@ -213,7 +257,7 @@ handle_Events :: (window : *Window_Info) -> (should_exit : bool)
 	should_exit = window.exit;
 	if should_exit
 	{
-		print("we should exit\n");
+		log("we should exit");
 	}
 	return should_exit;
 }
@@ -222,7 +266,7 @@ try_Close :: (window : *Window_Info)
 {
 	// @GracefullyExit so here we set the bitmap to be
 	// drawn, it does not matter anymore really
-	atomic_write(*window.bitmap.wait_for_blit, 0);
+	atomic_volatile_write(*window.bitmap.wait_for_blit, 0);
 }
 
 sleep :: (duration_ms : int) #c_call
@@ -230,13 +274,29 @@ sleep :: (duration_ms : int) #c_call
 	Sleep(xx duration_ms);
 }
 
+
+
 get_Input :: (window : Window) -> Input #c_call
 {
 	win := cast(*Window_Info)window;
 	push_context,defer_pop win.window_context;
-	log("Called Input");
-	return .{};
+	in := acquire(*win.input);
+	res := in.*;
+	in.mouse.delta = .{};
+	release(*win.input);
+	return res;
 }
+
+/*
+clear_Input :: (window : Window) #c_call
+{
+	win := cast(*Window_Info)window;
+	atomic_volatile_write(*win.clear_input, true);
+	while atomic_volatile_read(*win.clear_input)
+	{
+	}
+}
+*/
 
 
 
@@ -267,7 +327,7 @@ create_Bitmap :: (size : int2) -> Bitmap
 
 	assert(bitmap_size % size_of(Pixel) == 0);
 	
-	print("Bitmap has size %\n", bitmap.size);
+	log("Bitmap has size %", bitmap.size);
 	return bitmap;
 }
 
@@ -289,9 +349,9 @@ draw_Window :: (window : *Window_Info)
 	if scanlines_copied != bitmap.size.y
 	{
 		err := GetLastError();
-		log_error("[Error]: Windows Error %\n", err);
+		log_error("[Error]: Windows Error %", err);
 	}
-	atomic_write(*window.bitmap.wait_for_blit, 0);
+	atomic_volatile_write(*window.bitmap.wait_for_blit, 0);
 }
 
 
@@ -301,7 +361,6 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 {
 	window_info : *Window_Info;
 	for * active_windows  if it.handle == window_handle  window_info = it;
-	
 
 	result : LRESULT = 0;
 	if window_info 
@@ -310,24 +369,162 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 
 		if u_message == {
 		case WM_PAINT;
-			if atomic_read(*window_info.bitmap.wait_for_blit)
+			if atomic_volatile_read(*window_info.bitmap.wait_for_blit)
 			{
 				draw_Window(window_info);
 			}
 
 		case WM_SIZE;
-			print("We got resized to %\n", window_info.size);
+			log("We got resized to %", window_info.size);
 			window_info.size.x = xx (lparam & 0x0000FFFF) >> 0;
 			window_info.size.y = xx (lparam & 0xFFFF0000) >> 16;
 
 		case WM_DESTROY; #through;
 		case WM_CLOSE;
-			print("Close message %\n", u_message);
+			log("Close message %", u_message);
 			window_info.exit = true;
 			result = DefWindowProcW(window_handle, u_message, wparam, lparam);
-		
-		case WM_ACTIVATEAPP;
-		
+
+
+		case WM_ACTIVATE;
+			// https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-activate
+			WA_INACTIVE     :: 0;
+			WA_ACTIVE       :: 1;
+			WA_CLICKACTIVE :: 2;
+
+			capture_cursor := wparam == WA_ACTIVE || wparam == WA_CLICKACTIVE;
+			// Clipping the cursor to the window
+			// https://learn.microsoft.com/en-us/windows/win32/learnwin32/other-mouse-operations#confining-the-cursor
+			if capture_cursor 
+			{
+				/*
+				pt1 := POINT.{0,0};
+				pt2 := POINT.{xx window_info.size.x, xx window_info.size.y};
+				ClientToScreen(window_info.handle, *pt1);
+				ClientToScreen(window_info.handle, *pt2);
+				rect :=  RECT.{pt1.x, pt1.y, pt2.x, pt2.y};
+				window_info.active = ClipCursor(*rect) != 0;
+				*/
+			}
+			else
+			{
+				ClipCursor(null);
+				window_info.active = false;
+			}
+		case WM_MOUSEMOVE;
+			//https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mousemove
+			// @BetterMouse
+			// Maybe add here that we track where the mouse is?
+			// And maybe support modes where the mouse stays in the center of the screen
+			
+
+			
+		case WM_INPUT;
+			// https://web.archive.org/web/20120223150901/http://www.toymaker.info/Games/html/raw_input.html
+			size_required : u32;
+			GetRawInputData(cast(HRAWINPUT)lparam, RID_INPUT, null, *size_required, size_of(RAWINPUTHEADER));
+			if window_info.raw_input_buffer.count < size_required  array_resize(*window_info.raw_input_buffer, size_required);
+			GetRawInputData(cast(HRAWINPUT)lparam, RID_INPUT, window_info.raw_input_buffer.data, *size_required, size_of(RAWINPUTHEADER));
+			raw : *RAWINPUT = xx window_info.raw_input_buffer.data;
+			if raw.header.dwType == RIM_TYPEMOUSE
+			{
+				mouse_raw := raw.data.mouse;
+				if !mouse_raw.usFlags & MOUSE_MOVE_ABSOLUTE
+				{
+					in := acquire(*window_info.input);
+					using in;
+					mouse.delta.x += mouse_raw.lLastX;
+					mouse.delta.y += mouse_raw.lLastY;
+					release(*window_info.input);
+				}
+
+			}
+
+
+
+				
+			
+		case WM_KEYDOWN;
+			// https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
+			in := acquire(*window_info.input);
+			using in;
+			now := current_time_monotonic();
+			if wparam == 
+			{
+				case #char "A"; key_states[Button_Code.A].start_pressed = now;
+				case #char "B"; key_states[Button_Code.B].start_pressed = now;
+				case #char "C"; key_states[Button_Code.C].start_pressed = now;
+				case #char "D"; key_states[Button_Code.D].start_pressed = now;
+				case #char "E"; key_states[Button_Code.E].start_pressed = now;
+				case #char "F"; key_states[Button_Code.F].start_pressed = now;
+				case #char "G"; key_states[Button_Code.G].start_pressed = now;
+				case #char "H"; key_states[Button_Code.H].start_pressed = now;
+				case #char "I"; key_states[Button_Code.I].start_pressed = now;
+				case #char "J"; key_states[Button_Code.J].start_pressed = now;
+				case #char "K"; key_states[Button_Code.K].start_pressed = now;
+				case #char "L"; key_states[Button_Code.L].start_pressed = now;
+				case #char "M"; key_states[Button_Code.M].start_pressed = now;
+				case #char "N"; key_states[Button_Code.N].start_pressed = now;
+				case #char "O"; key_states[Button_Code.O].start_pressed = now;
+				case #char "P"; key_states[Button_Code.P].start_pressed = now;
+				case #char "Q"; key_states[Button_Code.Q].start_pressed = now;
+				case #char "R"; key_states[Button_Code.R].start_pressed = now;
+				case #char "S"; key_states[Button_Code.S].start_pressed = now;
+				case #char "T"; key_states[Button_Code.T].start_pressed = now;
+				case #char "U"; key_states[Button_Code.U].start_pressed = now;
+				case #char "V"; key_states[Button_Code.V].start_pressed = now;
+				case #char "W"; key_states[Button_Code.W].start_pressed = now;
+				case #char "X"; key_states[Button_Code.X].start_pressed = now;
+				case #char "Y"; key_states[Button_Code.Y].start_pressed = now;
+				case #char "Z"; key_states[Button_Code.Z].start_pressed = now;
+
+				case VK_LBUTTON; key_states[Button_Code.MOUSE_LEFT ].start_pressed = now;
+				case VK_RBUTTON; key_states[Button_Code.MOUSE_RIGHT].start_pressed = now;
+			};
+			result = 0;
+			release(*window_info.input);
+		case WM_KEYUP;
+			in := acquire(*window_info.input);
+			using in;
+			now := current_time_monotonic();
+			if wparam == 
+			{
+				case #char "A"; key_states[Button_Code.A].stop_pressed = now;
+				case #char "B"; key_states[Button_Code.B].stop_pressed = now;
+				case #char "C"; key_states[Button_Code.C].stop_pressed = now;
+				case #char "D"; key_states[Button_Code.D].stop_pressed = now;
+				case #char "E"; key_states[Button_Code.E].stop_pressed = now;
+				case #char "F"; key_states[Button_Code.F].stop_pressed = now;
+				case #char "G"; key_states[Button_Code.G].stop_pressed = now;
+				case #char "H"; key_states[Button_Code.H].stop_pressed = now;
+				case #char "I"; key_states[Button_Code.I].stop_pressed = now;
+				case #char "J"; key_states[Button_Code.J].stop_pressed = now;
+				case #char "K"; key_states[Button_Code.K].stop_pressed = now;
+				case #char "L"; key_states[Button_Code.L].stop_pressed = now;
+				case #char "M"; key_states[Button_Code.M].stop_pressed = now;
+				case #char "N"; key_states[Button_Code.N].stop_pressed = now;
+				case #char "O"; key_states[Button_Code.O].stop_pressed = now;
+				case #char "P"; key_states[Button_Code.P].stop_pressed = now;
+				case #char "Q"; key_states[Button_Code.Q].stop_pressed = now;
+				case #char "R"; key_states[Button_Code.R].stop_pressed = now;
+				case #char "S"; key_states[Button_Code.S].stop_pressed = now;
+				case #char "T"; key_states[Button_Code.T].stop_pressed = now;
+				case #char "U"; key_states[Button_Code.U].stop_pressed = now;
+				case #char "V"; key_states[Button_Code.V].stop_pressed = now;
+				case #char "W"; key_states[Button_Code.W].stop_pressed = now;
+				case #char "X"; key_states[Button_Code.X].stop_pressed = now;
+				case #char "Y"; key_states[Button_Code.Y].stop_pressed = now;
+				case #char "Z"; key_states[Button_Code.Z].stop_pressed = now;
+
+				case VK_LBUTTON; key_states[Button_Code.MOUSE_LEFT ].stop_pressed = now;
+				case VK_RBUTTON; key_states[Button_Code.MOUSE_RIGHT].stop_pressed = now;
+			};
+			result = 0;
+			release(*window_info.input);
+			
+		case WM_CHAR;
+			// https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-char
+			result = 0;
 		case;
 			result = DefWindowProcW(window_handle, u_message, wparam, lparam);
 		}
@@ -336,8 +533,12 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 		// So just do the standard thing
 		result = DefWindowProcW(window_handle, u_message, wparam, lparam);
 	}
+
 	return result;
 }
+
+
+
 
 
 gdi      :: #system_library "Gdi32";
@@ -398,8 +599,14 @@ RedrawWindow :: (
 RDW_INVALIDATE : u32 : 0x0001;
 RDW_UPDATENOW  : u32 : 0x0100;
 
+WM_ACTIVATE :: 0x0006;
+
 #import "Windows";
 #import "Basic";
 #import "Windows_Utf8";
 #import "Vector";
 #import "Atomics";
+#import "Sync";
+#import "Async_Buffer";
+#import "Bucket_Array";
+#import "Mutex";

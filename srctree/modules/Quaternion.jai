@@ -34,7 +34,6 @@ rotation_Matrix :: (quat : Quaternion) -> float4x4
 	res.data[2][1] = 2 * s * (jk + ir);
 
 	
-	
 	return res;
 }
 
@@ -53,6 +52,14 @@ rotation_Around_Axis :: (axis : float3, angle : float) -> Quaternion
 	return q;
 }
 
+inverse :: (quat : Quaternion) -> Quaternion
+{
+	res := quat;
+	res.x *= -1;
+	res.y *= -1;
+	res.z *= -1;
+	return res;
+}
 
 
 #import "Math";

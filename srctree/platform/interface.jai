@@ -1,4 +1,7 @@
-#import "Vector";
+#scope_export
+
+ENTRY_FUNCTION :: #type (*Platform) -> void #c_call;
+
 Window :: #type,distinct *void;
 Thread :: #type,distinct *void;
 
@@ -21,11 +24,26 @@ BackBuffer :: struct
 
 Input :: struct
 {
+	N_BUTTONS :: #run (cast(*Type_Info_Enum)Button_Code).names.count;
+	Key_State :: struct
+	{
+		start_pressed : Apollo_Time;
+		stop\_pressed : Apollo_Time;
+	};
 
+	key_states : [N_BUTTONS] Key_State;
+
+	Mouse :: struct
+	{
+		delta : int2;
+	}
+	mouse : Mouse;
 };
+
 
 Platform :: struct 
 {
+	STARTUP_TIME : Apollo_Time;
 	window : Window;
 	exit   : int; @Atomic;
 	general_heap  : Allocator;
@@ -37,4 +55,49 @@ Platform :: struct
 	sleep          : (int) #c_call;
 };
 
+Button_Code :: enum
+{
+	A;
+	B;
+	C;
+	D;
+	E;
+	F;
+	G;
+	H;
+	I;
+	J;
+	K;
+	L;
+	M;
+	N;
+	O;
+	P;
+	Q;
+	R;
+	S;
+	T;
+	U;
+	V;
+	W;
+	X;
+	Y;
+	Z;
+	MOUSE_LEFT;
+	MOUSE_RIGHT;
+	// @Incomplete
+};	
 
+
+is_Button_Pressed :: (input : *Input, button : Button_Code) -> bool
+{
+	// We can add things like recognizing released buttons, if they have been released after a certain time
+	// Which makes implementing cayote time and stuff like that maybe more convenient
+	// TODO
+	state := input.key_states[button];
+	return state.start_pressed > state.stop_pressed;
+}
+
+
+#import "Basic";
+#import "Vector";

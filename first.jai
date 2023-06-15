@@ -5,6 +5,9 @@ RUN\ GAME :: true; // I just have to do this even though it is horrible for sear
 
 build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 {
+	BACKEND_X64 :: false;
+	OPTIMIZATION : Jai.Optimization_Type:  .DEBUG;
+	
 	build_name := sprint("Platform %", os);
 	exec_name  := sprint("IU_%",os);
 	game_name  := sprint("Ilpigh Uzco");
@@ -15,10 +18,17 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 
 	workspace_platform := Jai.compiler_create_workspace(build_name);
 	options\ _platform := Jai.get_build_options(workspace_platform);
-	//options_platform.backend = .X64;
+
 	workspace_game     := Jai.compiler_create_workspace(game_name);
 	options\ _game     := Jai.get_build_options(workspace_game);
-	//options_game.backend = .X64;
+	#if BACKEND_X64
+	{
+		options_platform.backend = .X64;
+		options_game.backend = .X64;
+	}else{
+		options_platform.backend = .LLVM;
+		options_game.backend     = .LLVM;
+	}
 	
 	{
 		options_platform.text_output_flags = xx 0;
@@ -33,7 +43,7 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 		array_add(*import, platform_modules);
 		array_add(*import,          modules);
 		options_platform.import_path = import; 
-		Jai.set_optimization(*options_platform, .DEBUG);
+		Jai.set_optimization(*options_platform, OPTIMIZATION);
 
 		Jai.set_build_options(options_platform    , workspace_platform);
 	}
@@ -45,7 +55,7 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 		options_game.output_path = "binaries";
 		options_game.dead_code_elimination = .NONE;
 
-		Jai.set_optimization(*options_game, .DEBUG);
+		Jai.set_optimization(*options_game, OPTIMIZATION);
 
 		import : [..] string;
 		array_add(*import, ..options_platform.import_path); // We need this for RuntimeSupport
@@ -58,7 +68,6 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 	shared_build_string := sprint(#string DONE
 		Game_DLL_Name    : string                        : "%";
 		COMPILATION_MODE : enum {RELEASE; DEVELOPEMENT;} : %;
-		ENTRY_FUNCTION :: #type (*Platform) -> void #c_call;
 		ENTRY_FUNCTION_NAME :: "game_entry";
 	DONE, game_name, ".DEVELOPEMENT");
 	

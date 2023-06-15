@@ -11,8 +11,8 @@ Async_Buffer :: struct(Element : Type)
 	// @Robustness @Efficiency We should probably pad for the cache line size in the Pointer Struct
 	Padded_Element :: struct 
 	{
-		// #align CACHE_LINE_SIZE;
-		element : Element;
+		//#align 3;//# CACHE_LINE_SIZE;
+		element : Element #align 64;
 	}
 	buffers : [3] Padded_Element;
 }
@@ -191,4 +191,6 @@ valid :: (v : Pointers_Struct) -> bool
 }
 
 #import "Atomics";
+#import "Sync";
 #import "Basic";
+#import "Machine";

@@ -1,16 +1,21 @@
-
+STARTUP_TIME : Apollo_Time;
 main :: ()
 {
+	STARTUP_TIME = current_time_monotonic();
+	context.logger = logger;
 
 	platform_context : Platform;
-	platform_context.general_heap = context.allocator;
-	platform_context.start_Thread  = start_Thread;
-	platform_context.stop\_Thread  = stop\_Thread;
-	platform_context.update_Window = xx update_Window;
-	platform_context.get_BackBuffer = xx get_BackBuffer;
-	platform_context.get_Input = get_Input;
-	platform_context.window = xx create_Window("Ilpigh Uzco", .{400, 300});
-	platform_context.sleep = sleep;
+	{
+		platform_context.STARTUP_TIME = STARTUP_TIME;
+		platform_context.general_heap = context.allocator;
+		platform_context.start_Thread  = start_Thread;
+		platform_context.stop\_Thread  = stop\_Thread;
+		platform_context.update_Window = xx update_Window;
+		platform_context.get_BackBuffer = xx get_BackBuffer;
+		platform_context.get_Input = get_Input;
+		platform_context.window = xx create_Window("Ilpigh Uzco", .{400, 300});
+		platform_context.sleep = sleep;
+	}
 
 	game := load_Game_Code(Game_DLL_Name);
 
@@ -22,12 +27,12 @@ main :: ()
 		should_exit := handle_Events(xx platform_context.window);
 		if should_exit 
 		{
-			atomic_write(*platform_context.exit, 1);	
+			atomic_volatile_write(*platform_context.exit, 1);	
 			break;
 		}
 	}
 	
-	while atomic_read(*platform_context.exit) == 1
+	while atomic_volatile_read(*platform_context.exit) == 1
 	{
 		// repeat this until the game says it has shutdown
 		try_Close(xx platform_context.window);
@@ -49,8 +54,17 @@ load_Game_Code :: ($dll_name : string) -> ENTRY_FUNCTION
 }
 
 
+logger :: (message : string, data : *void, info : Log_Info)
+{
+	now := current_time_monotonic() - STARTUP_TIME;
+	print("[PLATFORM]+%: %\n", to_milliseconds(now),message);
+}
+
+
 #import "platform";
 #import "Basic";
 #import "Atomics";
+#import "Sync";
+#import "Common";
 
 //#run main();

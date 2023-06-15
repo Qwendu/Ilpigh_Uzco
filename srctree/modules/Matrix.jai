@@ -69,6 +69,15 @@ add_Offset :: (mat : *float4x4, pos : float3)
 	mat.row_vectors[2].w += pos.z;
 }
 
+add_Offset :: (mat : float4x4, pos : float3) -> float4x4 #must
+{
+	res := mat;
+	res.row_vectors[0].w += pos.x;
+	res.row_vectors[1].w += pos.y;
+	res.row_vectors[2].w += pos.z;
+	return res;
+}
+
 #scope_file
 
 
