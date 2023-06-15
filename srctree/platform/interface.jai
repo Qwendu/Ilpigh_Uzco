@@ -35,6 +35,7 @@ Input :: struct
 
 	Mouse :: struct
 	{
+		//position_relative_to_top_left : int2; //@BetterMouse
 		delta : int2;
 	}
 	mouse : Mouse;

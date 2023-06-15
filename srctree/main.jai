@@ -42,7 +42,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	camera_pitch_yaw : float2;
 	
 	log("Entering Main Loop");
-	previous_mouse := platform.get_Input(platform.window).mouse;
+	
 	while atomic_volatile_read(*platform.exit) == 0
 	{
 		DELTA :: 1.0/PHYSICS_FREQUENCY;
@@ -50,7 +50,6 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		now := current_time_monotonic();
 
 		input := platform.get_Input(platform.window);
-		defer previous_mouse = input.mouse;
 
 		mouse_delta := float2.{input.mouse.delta.x * 0.1, input.mouse.delta.y * 0.1};
 		
