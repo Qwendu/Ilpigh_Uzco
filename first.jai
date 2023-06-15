@@ -1,4 +1,4 @@
-RUN\ GAME :: true; // I just have to do this even though it is horrible for searching and stuff
+RUN\ GAME :: true;
 
 
 

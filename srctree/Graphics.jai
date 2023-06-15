@@ -88,8 +88,8 @@ draw :: (args :*Draw_Args) #c_call
 	{
 		for w: 0..height_map_res.x-1
 		{
-			w_sample := cast(float)w/height_map_res.x;
-			h_sample := cast(float)h/height_map_res.y;
+			w_sample := cast(float)w/(height_map_res.x - 1);
+			h_sample := cast(float)h/(height_map_res.y - 1);
 			v := *height_map.vertices[h * height_map_res.x + w];
 			v.x = w_sample * height_map_dims.x - height_map_dims.x/2;
 			v.z = h_sample * height_map_dims.z - height_map_dims.z/2;
@@ -197,10 +197,13 @@ loaded_meshes : [..] Mesh;
 
 
 
+screen2 :: Vector(2, s32 /*fixed_point 26.6*/);
 
 
 depth_buffer : [] float;
 shader_buffer : [] Shader_Input;
+vertices_screen : [..] screen2;
+depth_screen    : [..] float;
 
 render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 {
@@ -303,14 +306,14 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		n_vertices += it.mesh_ptr.triangles.count * 3;
 	}
 	//log("Vertex Buffer Size = %", n_vertices);
-	vertices_screen := NewArray(n_vertices,            Vector(2, s32));
-	depth\  _screen := NewArray(vertices_screen.count, float);
+	if n_vertices > vertices_screen.count  array_resize(*vertices_screen, n_vertices);
+	if n_vertices > depth_screen   .count  array_resize(*depth_screen,    n_vertices);
 	
 	FIXEDPOINT_BITS :: 8;
 	FIXEDPOINT_MASK :: (1<<FIXEDPOINT_BITS)-1;
 	FIXEDPOINT_ONE  ::  1<<FIXEDPOINT_BITS;
 	
-	screen2 :: Vector(2, s32 /*fixed_point 26.6*/);
+
 	det_2d :: (a :screen2, b: screen2, p : screen2) -> s32
 	{
 		return ((b.x-a.x)*(p.y-a.y)>>FIXEDPOINT_BITS) - ((b.y-a.y)*(p.x-a.x)>>FIXEDPOINT_BITS);

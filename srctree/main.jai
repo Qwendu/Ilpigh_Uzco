@@ -34,11 +34,10 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	ticks_since_start : int = 0;
 
 	ms_pause : int =  1000/PHYSICS_FREQUENCY;
-	pos :float3 = .{x = -0.1, y = -0.1,z = 1};
 	
 	draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
 
-	position := float3.{y = 2};
+	position := float3.{y = 1, z = 5};
 	camera_pitch_yaw : float2 = .{y = -.2};
 	
 	log("Entering Main Loop");
@@ -49,7 +48,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		Frame();
 		now := current_time_monotonic();
 
-		input := platform.get_Input(platform.window);
+		input := ifx IGNORE_INPUT then Input.{} else platform.get_Input(platform.window);
 
 		mouse_delta := float2.{input.mouse.delta.x * 0.1, input.mouse.delta.y * 0.1};
 		
@@ -104,7 +103,6 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 		mat := identity(4, float);
 		add_Mesh(draw_buffer, .{id = 3, model_to_world = mat});
-		add_Offset(*mat, pos);
 
 		floor_tile := Model_Instance.{id = 2, model_to_world = identity(4, float)};
 		EXTENT :: 1;
@@ -112,7 +110,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		{
 			for x: 0..EXTENT
 			{
-				model_to_world_matrix := add_Offset(mat, float3.{xx (x - 1),xx (y - 1), - 3});
+				model_to_world_matrix := add_Offset(mat, float3.{xx (x - 1),xx (y - 1), 0});
 				floor_tile.model_to_world = model_to_world_matrix;
 				add_Mesh(draw_buffer, floor_tile);
 			}
@@ -134,8 +132,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		
 		
 		draw_buffer.camera.rotation = rotation;
-		draw_buffer.camera.far = 100;
-		//draw_buffer.camera.position = pos;
+		draw_buffer.camera.far = 12;
 		
 
 		draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);
