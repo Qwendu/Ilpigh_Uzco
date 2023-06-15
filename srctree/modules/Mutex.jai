@@ -3,6 +3,7 @@
 Mutex  :: struct(T : Type)
 {
 	lock : int;
+	padding : [#run padding_Needed_To_Multiple(size_of(int), target_cpu.cache.cache_line_size)] u8;
 	data : T;
 }
 
@@ -25,3 +26,4 @@ release :: (mutex : *$M/Mutex, loc := #caller_location)  #expand
 #import "Atomics";
 #import "Sync";
 #import "Basic";
+#import "Machine";

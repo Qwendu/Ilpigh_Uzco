@@ -11,8 +11,8 @@ Async_Buffer :: struct(Element : Type)
 	// @Robustness @Efficiency We should probably pad for the cache line size in the Pointer Struct
 	Padded_Element :: struct 
 	{
-		//#align 3;//# CACHE_LINE_SIZE;
-		element : Element #align 64;
+		element : Element #align #run target_cpu.cache.cache_line_size;
+		padding : [#run padding_Needed_To_Multiple(size_of(Element), target_cpu.cache.cache_line_size)] u8;
 	}
 	buffers : [3] Padded_Element;
 }
