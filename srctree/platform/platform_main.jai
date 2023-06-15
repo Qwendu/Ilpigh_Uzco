@@ -1,6 +1,7 @@
 STARTUP_TIME : Apollo_Time;
 main :: ()
 {
+	Profiler.NameThread(#procedure_name());
 	STARTUP_TIME = current_time_monotonic();
 	context.logger = logger;
 
@@ -66,5 +67,6 @@ logger :: (message : string, data : *void, info : Log_Info)
 #import "Atomics";
 #import "Sync";
 #import "Common";
+Profiler :: #import "Tracy";
 
 //#run main();

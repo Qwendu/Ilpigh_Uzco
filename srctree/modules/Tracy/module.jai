@@ -1,21 +1,70 @@
 #scope_export
+#module_parameters(ENABLE := false);
+
+
+#if ENABLE  #run print("Tracy Enabled\n");
+
+
 
 AppInfo :: (message : string) #expand #no_debug #no_context
 {
-	___tracy_emit_message_appinfo(message.data, message.count);
+	#if ENABLE
+	{
+		___tracy_emit_message_appinfo(message.data, message.count);
+	}
 }
 
-TimeZone :: ($loc := #caller_location) #expand
+TimeZone :: ($name : string = "", $loc := #caller_location) #expand
 {
-	tracy_loc :: #run loc_to_tracy(loc);
-	ctx := ___tracy_emit_zone_begin(*tracy_loc, 1);
-	`defer ___tracy_emit_zone_end(ctx);
+	#if ENABLE
+	{
+		`function_name :: #procedure_name();
+		tracy_loc :: #run loc_to_tracy(name,loc, function_name);
+		ctx := ___tracy_emit_zone_begin(*tracy_loc, 1);
+		`defer ___tracy_emit_zone_end(ctx);
+	}
 }
 
 
-Frame ::() #expand #no_debug #no_context
+Frame :: ($frame_name : string = "<UNINITIALIZED>") #expand #no_debug #no_context
 {
-	___tracy_emit_frame_mark("<=UNINIT=>");
+	#if ENABLE
+	{
+		___tracy_emit_frame_mark(frame_name);
+	}
+}
+
+NameThread :: ($thread_name : string) #expand #no_debug #no_context
+{
+	#if ENABLE
+	{
+		___tracy_set_thread_name(#run add_To_Data_Segment(thread_name));
+	}
+}
+
+
+Plot :: ($name : string = "<DEFAULT_PLOT>", value : float64) #expand #no_debug #no_context
+{
+	#if ENABLE
+	{
+		___tracy_emit_plot(name, value);
+	}
+}
+
+Plot :: ($name : string = "<DEFAULT_PLOT>", value : float32) #expand #no_debug #no_context
+{
+	#if ENABLE
+	{
+		___tracy_emit_plot_float(name, value);
+	}
+}
+
+Plot :: ($name : string = "<DEFAULT_PLOT>", value : int) #expand #no_debug #no_context
+{
+	#if ENABLE
+	{
+		___tracy_emit_plot_int(name, value);
+	}
 }
 
 
@@ -28,12 +77,39 @@ Frame ::() #expand #no_debug #no_context
 
 #scope_file
 
-loc_to_tracy :: ($loc := #caller_location) -> ___tracy_source_location_data
+#if ENABLE
 {
-	using r := ___tracy_source_location_data.{};
 
-	return r;
+	Tracy_SEGMENT_CREATED : bool = false;
+	Tracy_SEGMENT : *Jai.Data_Segment = null; // Only available at compile time
+
+	loc_to_tracy :: (name : string, loc : Source_Code_Location, procedure_name : string) -> ___tracy_source_location_data
+	{
+		r := ___tracy_source_location_data.{};
+		r.name = add_To_Data_Segment(name);
+		r.file = add_To_Data_Segment(loc.fully_pathed_filename);
+		r.function = add_To_Data_Segment(procedure_name);;
+		r.line = xx loc.line_number;
+		
+		return r;
+	}
+
+	add_To_Data_Segment :: (str : string) -> *u8
+	{
+		if #compile_time
+		{
+			if !Tracy_SEGMENT_CREATED
+			{
+				Tracy_SEGMENT = Jai.add_data_segment("TRACY_SEGMENT", characteristics = .READ);
+				Tracy_SEGMENT_CREATED = true;
+			}
+
+		}
+		in_data := Jai.add_global_data(xx sprint("%\0", str), .USER_SEGMENT, Tracy_SEGMENT);
+		return in_data.data;
+	}
+
+	#load "tracy_bindings.jai";
 }
 
-#load "tracy_bindings.jai";
 Jai :: #import "Compiler";

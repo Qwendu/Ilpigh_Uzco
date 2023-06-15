@@ -1,4 +1,5 @@
 #import "Common";
+Profiler :: #import "Tracy"(true);
 
 
 #add_context STARTUP_TIME : Apollo_Time;
@@ -8,6 +9,7 @@ PHYSICS_FREQUENCY :: 100;
 #program_export
 game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 {
+	Profiler.NameThread(#procedure_name());
 	if !platform_init return;
 	platform = platform_init;
 	c : Context;

@@ -1,6 +1,7 @@
 #import "Common";
 #import "Mesh";
 
+
 Draw_Args :: struct
 {
 	exit: *int;
@@ -21,6 +22,7 @@ command_buffer : Async_Buffer(Draw_Buffer);
 
 draw :: (args :*Draw_Args) #c_call
 {
+	Profiler.NameThread(#procedure_name());
 	plt : *Platform = args.plt;
 
 	draw_context := Context.{};
@@ -116,6 +118,7 @@ draw :: (args :*Draw_Args) #c_call
 
 	while atomic_volatile_read(args.exit) == 0
 	{
+		Profiler.TimeZone();
 		buffer : *Draw_Buffer = get_Read_Pointer(command_reader);
 		render_Triangles_In_Draw_Buffer(plt, buffer);
 
@@ -124,6 +127,7 @@ draw :: (args :*Draw_Args) #c_call
 		plt.update_Window(plt.window);
 		plt.sleep(1);
 		after := current_time_monotonic();
+		Profiler.Plot("Actual Sleep Time", to_milliseconds(after - before));
 	}
 
 	atomic_volatile_write(args.exit, 0);
@@ -209,6 +213,7 @@ material_sequence : [..] struct {end_vertex : int; material: Material;};
 
 render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 {
+	Profiler.TimeZone(#procedure_name());
 	LOG_CLIPPING :: false;
 	LOG_CULLING  :: false;
 
@@ -230,6 +235,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	// Reset Buffers Depth, Shader, Pixel
 	//
 	{
+		Profiler.TimeZone("Reset Buffers");
 		n_elements := bb.size.y * bb.stride;
 		if depth_buffer.count != n_elements
 		{
@@ -276,33 +282,36 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		return res;
 	}
 	
-	for 0..draw_buffer.n_instances-1
 	{
-		instance := *draw_buffer.instances[it];
-		mesh     := *loaded_meshes[instance.id];
-		corners_mesh  :=  aabb_To_Corners(mesh.aabb);
-		instance_to_projection := projection * world_to_camera * instance.model_to_world;
-		n_outside := 0;
-
-		for corners_mesh
+		Profiler.TimeZone("AABB Culling");
+		for 0..draw_buffer.n_instances-1
 		{
-			proj := project_Point(instance_to_projection, it);
-			if outcode(proj.xyz) != 0
+			instance := *draw_buffer.instances[it];
+			mesh     := *loaded_meshes[instance.id];
+			corners_mesh  :=  aabb_To_Corners(mesh.aabb);
+			instance_to_projection := projection * world_to_camera * instance.model_to_world;
+			n_outside := 0;
+
+			for corners_mesh
 			{
-				n_outside += 1;
+				proj := project_Point(instance_to_projection, it);
+				if outcode(proj.xyz) != 0
+				{
+					n_outside += 1;
+				}
+			}
+			if n_outside != 8 || true
+			{
+				active := array_add(*active_meshes);
+				active.instance_to_projection = instance_to_projection;
+				active.mesh_ptr = mesh;
+			}else{
+				#if LOG_CULLING log("Culled instance %", it);
 			}
 		}
-		if n_outside != 8 || true
-		{
-			active := array_add(*active_meshes);
-			active.instance_to_projection = instance_to_projection;
-			active.mesh_ptr = mesh;
-		}else{
-			#if LOG_CULLING log("Culled instance %", it);
-		}
+		Profiler.Plot("Active Instances", active_meshes.count);
+		//log("% Active Instances", active_meshes.count);
 	}
-	//log("% Active Instances", active_meshes.count);
-	
 
 
 	n_vertices := 0;
@@ -327,6 +336,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	//  Translate all vertices and fill the material sequence
 	//
 	{
+		Profiler.TimeZone("Translate");
 		material_sequence.count = 0;
 		factor_x := cast(type_of(screen2.x))FIXEDPOINT_ONE * bb.size.x;
 		factor_y := cast(type_of(screen2.x))FIXEDPOINT_ONE * bb.size.y;
@@ -380,6 +390,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		}
 		n_vertices  = vertex_base; // Set to the actual number of vertices
 		//log("% Triangles are being rasterized", n_vertices/3);
+		Profiler.Plot("Triangles", n_vertices);
 	}
 
 
@@ -390,6 +401,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	// Rasterization
 	//
 	{
+		Profiler.TimeZone("Rasterization");
 		triangle_start := 0;
 		material_sequence_idx := 0;
 		while triangle_start < n_vertices
@@ -496,18 +508,26 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		}
 	}
 
-	//log("Applying Pixel Shader");
-	for y:0..bb.size.y-1
+	//
+	// Pixel Shader
+	//
 	{
-		for x:0..bb.size.x-1
+		Profiler.TimeZone("Pixel Shader");
+		actual_shader_calls : int = 0;
+		for y:0..bb.size.y-1
 		{
-			if depth_buffer[y * bb.stride + x] == 1 continue x;
-			out := color_shader(shader_buffer[y * bb.stride + x]);
-			color := out.color.vec * 255.0;
-			pixel := Pixel.{r = xx clamp(color.x, 0, 255), g = xx clamp(color.y, 0, 255), b = xx clamp(color.z, 0, 255)};
+			for x:0..bb.size.x-1
+			{
+				if depth_buffer[y * bb.stride + x] == 1 continue x;
+				actual_shader_calls += 1;
+				out := color_shader(shader_buffer[y * bb.stride + x]);
+				color := out.color.vec * 255.0;
+				pixel := Pixel.{r = xx clamp(color.x, 0, 255), g = xx clamp(color.y, 0, 255), b = xx clamp(color.z, 0, 255)};
 
-			bb.data[y * bb.stride + x] = pixel;
+				bb.data[y * bb.stride + x] = pixel;
+			}
 		}
+		Profiler.Plot("Pixel Shader Calls", actual_shader_calls);
 	}
 }
 
@@ -532,12 +552,7 @@ color_shader :: (in : Shader_Input) -> Shader_Output
 
 
 
-
-
-
-
-
-
+Profiler :: #import "Tracy";
 #import "Atomics";
 #import "Async_Buffer";
 #import "Basic";
