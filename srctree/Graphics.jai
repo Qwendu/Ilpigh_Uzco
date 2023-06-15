@@ -77,6 +77,39 @@ draw :: (args :*Draw_Args) #c_call
 		.{0,2,3}
 	];
 
+	height_map_width  :: 20;
+	height_map_height :: 20;
+	height_map := array_add(*loaded_meshes);
+	height_map.material.color = .{.2,.5,.5,1};
+	height_map.vertices = NewArray(height_map_width * height_map_height, float3);
+	height_map.aabb = generate_AABB_Of_Mesh(height_map);
+	for h: 0..height_map_height-1
+	{
+		for w: 0..height_map_width-1
+		{
+			v := *height_map.vertices[h * height_map_width + w];
+			v.x = cast(float)(w - height_map_width/2);
+			v.z = cast(float)(h - height_map_height/2);
+			v.y = cast(float)(sin(w/PI));
+		}
+	}
+	height_map.triangles = NewArray((height_map_width - 1) * 2 * (height_map_height - 1), int3);
+	idx := 0;
+	for h: 0..height_map_height-2
+	{
+		for w: 0..height_map_width-2
+		{
+			v1 := h * height_map_width + w;
+			v2 := h * height_map_width + (w + 1);
+			v3 := (h + 1) * height_map_width + w;
+			v4 := (h + 1) * height_map_width + (w + 1);
+			height_map.triangles[idx + 0] = .{v1,v3, v2}; 
+			height_map.triangles[idx + 1] = .{v2,v3, v4}; 
+			idx += 2;
+		}
+	}
+
+
 	while atomic_volatile_read(args.exit) == 0
 	{
 		buffer : *Draw_Buffer = get_Read_Pointer(command_reader);
@@ -247,7 +280,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 				n_outside += 1;
 			}
 		}
-		if n_outside != 8
+		if n_outside != 8 || true
 		{
 			active := array_add(*active_meshes);
 			active.instance_to_projection = instance_to_projection;
@@ -295,7 +328,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			b_out := outcode(b);
 			c_out := outcode(c);
 
-			if a_out != 0 && b_out != 0 && c_out != 0 
+			if a_out != 0 || b_out != 0 || c_out != 0 
 			{
 				#if LOG_CLIPPING log("Clipping Triangle %:% [% % %]", it_index, triangle_idx, a_out, b_out, c_out);
 				continue triangle;
@@ -309,7 +342,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			b_s := screen2.{cast(s32) (b.x * factor_x), cast(s32) (b.y * factor_y)};
 			c_s := screen2.{cast(s32) (c.x * factor_x), cast(s32) (c.y * factor_y)};
 
-			if det_2d(a_s, b_s, c_s) == 0  continue; // dont rasterize 0 area triangles
+			if det_2d(a_s, b_s, c_s) == 0  continue triangle; // dont rasterize 0 area triangles
 
 			vertices_screen [idx + 0] = a_s;
 			vertices_screen [idx + 1] = b_s;

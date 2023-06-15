@@ -82,7 +82,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 				if(is_Button_Pressed(*input, .L))  rot += .{ 1, 0};
 			}else{
 			
-				rot = mouse_delta * 0.1;
+				rot = mouse_delta * 1.0;
 				rot.y *= -1;
 			}
 			camera_pitch_yaw += rot * DELTA;
@@ -103,6 +103,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 
 		mat := identity(4, float);
+		add_Mesh(draw_buffer, .{id = 3, model_to_world = mat});
 		add_Offset(*mat, pos);
 
 		floor_tile := Model_Instance.{id = 2, model_to_world = identity(4, float)};
@@ -133,6 +134,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		
 		
 		draw_buffer.camera.rotation = rotation;
+		draw_buffer.camera.far = 100;
 		//draw_buffer.camera.position = pos;
 		
 
