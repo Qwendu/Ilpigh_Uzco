@@ -38,8 +38,8 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	
 	draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
 
-	position := float3.{};
-	camera_pitch_yaw : float2;
+	position := float3.{y = 2};
+	camera_pitch_yaw : float2 = .{y = -.2};
 	
 	log("Entering Main Loop");
 	

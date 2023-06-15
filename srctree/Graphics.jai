@@ -24,6 +24,7 @@ draw :: (args :*Draw_Args) #c_call
 	plt : *Platform = args.plt;
 
 	draw_context := Context.{};
+	draw_context.STARTUP_TIME = args.plt.STARTUP_TIME;
 	draw_context.logger = draw_logger;
 	push_context,defer_pop draw_context;
 	output : Output;
@@ -77,37 +78,40 @@ draw :: (args :*Draw_Args) #c_call
 		.{0,2,3}
 	];
 
-	height_map_width  :: 20;
-	height_map_height :: 20;
+	height_map_res :: int2.{30, 30};
+	height_map_dims :: float3.{10, .7, 10};
 	height_map := array_add(*loaded_meshes);
 	height_map.material.color = .{.2,.5,.5,1};
-	height_map.vertices = NewArray(height_map_width * height_map_height, float3);
+	height_map.vertices = NewArray(height_map_res.x * height_map_res.y, float3);
 	height_map.aabb = generate_AABB_Of_Mesh(height_map);
-	for h: 0..height_map_height-1
+	for h: 0..height_map_res.y-1
 	{
-		for w: 0..height_map_width-1
+		for w: 0..height_map_res.x-1
 		{
-			v := *height_map.vertices[h * height_map_width + w];
-			v.x = cast(float)(w - height_map_width/2);
-			v.z = cast(float)(h - height_map_height/2);
-			v.y = cast(float)(sin(w/PI));
+			w_sample := cast(float)w/height_map_res.x;
+			h_sample := cast(float)h/height_map_res.y;
+			v := *height_map.vertices[h * height_map_res.x + w];
+			v.x = w_sample * height_map_dims.x - height_map_dims.x/2;
+			v.z = h_sample * height_map_dims.z - height_map_dims.z/2;
+			v.y = cast(float)(sin(w_sample * 2 * PI)) * height_map_dims.y;
 		}
 	}
-	height_map.triangles = NewArray((height_map_width - 1) * 2 * (height_map_height - 1), int3);
+	height_map.triangles = NewArray((height_map_res.x - 1) * 2 * (height_map_res.y - 1), int3);
 	idx := 0;
-	for h: 0..height_map_height-2
+	for h: 0..height_map_res.y-2
 	{
-		for w: 0..height_map_width-2
+		for w: 0..height_map_res.x-2
 		{
-			v1 := h * height_map_width + w;
-			v2 := h * height_map_width + (w + 1);
-			v3 := (h + 1) * height_map_width + w;
-			v4 := (h + 1) * height_map_width + (w + 1);
+			v1 := h * height_map_res.x + w;
+			v2 := h * height_map_res.x + (w + 1);
+			v3 := (h + 1) * height_map_res.x + w;
+			v4 := (h + 1) * height_map_res.x + (w + 1);
 			height_map.triangles[idx + 0] = .{v1,v3, v2}; 
 			height_map.triangles[idx + 1] = .{v2,v3, v4}; 
 			idx += 2;
 		}
 	}
+	log("% vertices, % triangles in heightmap", height_map.vertices.count, height_map.triangles.count);
 
 
 	while atomic_volatile_read(args.exit) == 0
