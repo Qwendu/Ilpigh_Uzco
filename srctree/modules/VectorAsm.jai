@@ -29,18 +29,30 @@ AVector :: struct(dim : int, T : Type)
 }
 
 
-dot :: (a : $V/AVector, b : V) -> V.T
+dot :: (a : $V/AVector, b : V) -> V.T #expand
 {
+	
 	res : V.T;
-	for a.data  
+	#if V.dim == 4 && V.T == float32
 	{
-		res += a.data[it_index] * b.data[it_index];
+		#asm
+		{
+			movaps  a_v : vec, a;
+			dpps a_v, b, 0xF1;
+			movss [*res], a_v;
+		}
+	}else{
+		for a.data  
+		{
+			res += a.data[it_index] * b.data[it_index];
+		}
+
 	}
 	return res;
 }
 
 
-operator + :: (a : $V/AVector, b : V) -> V #symmetric
+operator + :: (a : $V/AVector, b : V) -> V #symmetric #expand
 {
 	r := a;
 	#if V.dim == 4 && V.T == s32
@@ -56,7 +68,7 @@ operator + :: (a : $V/AVector, b : V) -> V #symmetric
 }
 
 
-operator - :: (a : $V/AVector, b : V) -> V
+operator - :: (a : $V/AVector, b : V) -> V #expand
 {
 	r := a;
 	#if V.dim == 4 && V.T == s32
@@ -71,7 +83,7 @@ operator - :: (a : $V/AVector, b : V) -> V
 	return r;
 }
 
-operator * :: (a : $V/AVector, b : V.T) -> V #symmetric
+operator * :: (a : $V/AVector, b : V.T) -> V #symmetric #expand
 {	
 	r := a;
 	#insert #run -> string
@@ -87,7 +99,7 @@ operator * :: (a : $V/AVector, b : V.T) -> V #symmetric
 	return r;
 }
 
-operator / :: (a : $V/AVector, b : V.T) -> V
+operator / :: (a : $V/AVector, b : V.T) -> V #expand
 {
 	r := a;
 	#insert #run -> string
