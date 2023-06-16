@@ -9,7 +9,7 @@ modules          :: "srctree/modules";
 build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 {
 	BACKEND_X64 :: false;
-	OPTIMIZATION : Jai.Optimization_Type:  .VERY_OPTIMIZED;
+	OPTIMIZATION : Jai.Optimization_Type:  .DEBUG;
 	print("Opt = %\n", OPTIMIZATION);
 
 	
@@ -71,9 +71,9 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 	}
 
 	optimization_string := sprint(#string DONE
-Optimization Level = %,
-	Vectorization = % + %,
-DONE, OPTIMIZATION, ifx options_game.llvm_options.enable_slp_vectorization then "SLP Vectorization" else "", ifx options_game.llvm_options.enable_loop_vectorization then "Loop Vectorization" else "");
+Optimization Level = %
+	Vectorization = % %
+DONE, OPTIMIZATION, ifx options_game.llvm_options.enable_slp_vectorization then "SLP Vectorization" else "", ifx options_game.llvm_options.enable_loop_vectorization then "+ Loop Vectorization" else "");
 
 	shared_build_string := sprint(#string DONE
 		Game_DLL_Name    : string                        : "%";

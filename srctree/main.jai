@@ -1,5 +1,5 @@
 #import "Common";
-Profiler :: #import "Tracy"(true);
+
 
 
 #add_context STARTUP_TIME : Apollo_Time;
@@ -167,6 +167,7 @@ platform : *Platform;
 
 
 #import,file "Graphics.jai"(PROFILER);
+Profiler :: #import "Tracy"(PROFILER);
 #import "Basic";
 
 #import "Async_Buffer";
