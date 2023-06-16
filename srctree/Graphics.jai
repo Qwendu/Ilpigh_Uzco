@@ -529,7 +529,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		}
 		Profiler.Plot("Pixel Shader Calls", actual_shader_calls);
 	}
-}
+} @Disassemble
 
 
 depth_shader :: (in : Shader_Input) -> Shader_Output

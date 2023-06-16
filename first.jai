@@ -1,7 +1,10 @@
 RUN\ GAME :: true;
 
 
+Disassembler :: #import,file "srctree/modules/Disassembler.jai"(ENABLE = false);
 
+
+modules          :: "srctree/modules";
 
 build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 {
@@ -13,7 +16,7 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 	game_name  := sprint("Ilpigh Uzco");
 
 	platform_modules := sprint("srctree/platform/%/", os);
-	modules          := "srctree/modules";
+
 
 
 	workspace_platform := Jai.compiler_create_workspace(build_name);
@@ -73,43 +76,31 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 	
 
 
-
-	Jai.compiler_begin_intercept(workspace_platform);
-
-
-	Jai.add_build_string(shared_build_string, workspace_platform);
-	Jai.add_build_file("srctree/platform/platform_main.jai", workspace_platform);
-
-	succeeded_in_the_games_industry : bool = true;
-	while true
+	compile :: (workspace : Workspace, $main_file : string, plugins : [] string) -> bool #expand
 	{
-		msg := Jai.compiler_wait_for_message();
-		if msg.kind == .COMPLETE 
+		Jai.compiler_begin_intercept(workspace);
+		disassembler := Disassembler.get_plugin(workspace);
+
+		Jai.add_build_string(shared_build_string, workspace);
+		Jai.add_build_file(main_file, workspace);
+
+		success : bool = true;
+		while true
 		{
-			succeeded_in_the_games_industry &= (cast(*Jai.Message_Complete)msg).error_code == .NONE;
-			break;
+			msg := Jai.compiler_wait_for_message();
+			disassembler.message(disassembler, msg);
+			if msg.kind == .COMPLETE 
+			{
+				success &= (cast(*Jai.Message_Complete)msg).error_code == .NONE;
+				break;
+			}
 		}
+		Jai.compiler_end_intercept(workspace);
+		return success;
 	}
-	Jai.compiler_end_intercept(workspace_platform);
-	if !succeeded_in_the_games_industry  return false;
-
-
-	Jai.compiler_begin_intercept(workspace_game);
-	Jai.add_build_string(shared_build_string, workspace_game);
-	Jai.add_build_file("srctree/main.jai", workspace_game);
-
-	while true
-	{
-		msg := Jai.compiler_wait_for_message();
-		if msg.kind == .COMPLETE 
-		{
-			succeeded_in_the_games_industry &= (cast(*Jai.Message_Complete)msg).error_code == .NONE;
-			break;
-		}
-	}
-	Jai.compiler_end_intercept(workspace_game);
-
-	return succeeded_in_the_games_industry;
+	if !compile(workspace_platform, "srctree/platform/platform_main.jai", .[])  return false;
+	if !compile(workspace_game    , "srctree/main.jai", .[]) return false;
+	return true;
 }
 
 #run {
