@@ -453,12 +453,15 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			det_1_base := det_2d(b,c,pxl);
 			det_2_base := det_2d(c,a,pxl);
 
-			det_base := AVector(4, s32).{det_0_base, det_1_base, det_2_base, 0};
+			det_base := Vector(3, s32).{det_0_base, det_1_base, det_2_base};
 			
-			det_delta_x := AVector(4, s32).{(b-a).x,(c-b).x,(a-c).x, 0};
-			det_delta_y := AVector(4, s32).{(b-a).y,(c-b).y,(a-c).y, 0};
-	
-			det_base += det_delta_x;
+
+			_det_0_delta := b-a;
+			_det_1_delta := c-b;
+			_det_2_delta := a-c;
+
+			det_delta_x := Vector(3, s32).{(b-a).x,(c-b).x,(a-c).x};
+			det_delta_y := Vector(3, s32).{(b-a).y,(c-b).y,(a-c).y};
 
 			det := det_base;
 
@@ -501,7 +504,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 							shader_buffer[y_off * bb.stride + x_off] = input;
 						}
 					}
-					det   = det - det_delta_y;
+					det   -= det_delta_y;
 
 					pxl.x += FIXEDPOINT_ONE;
 					x_off += 1;
@@ -510,6 +513,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 				pxl.y += FIXEDPOINT_ONE;
 				y_off += 1;
 			}
+			
 		}
 	}
 
@@ -562,7 +566,6 @@ Profiler :: #import "Tracy"(true);
 #import "Async_Buffer";
 #import "Basic";
 #import "Vector";
-#import "VectorAsm";
 #import "Matrix";
 #import "Camera";
 #import "Math";
