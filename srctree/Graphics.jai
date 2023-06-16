@@ -469,8 +469,12 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			depth_2 := depth_screen_space[triangle_start + 1];
 			depth_0 := depth_screen_space[triangle_start + 2];
 
+
+
 			u_delta := depth_1 - depth_0;
 			v_delta := depth_2 - depth_0;
+
+			uv_delta := AVector(4, float32).{1, u_delta, v_delta, 0};
 
 			y_off : s32 = ((pxl.y + cast(s32)bb.size.y * FIXEDPOINT_ONE / 2) / FIXEDPOINT_ONE);
 			while pxl.y < max_tri.y
@@ -488,7 +492,8 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 						//  maybe thats better.
 						u := det.y/cast(float)area_2; 
 						v := det.z/cast(float)area_2;
-						depth := depth_0 + u * u_delta + v * v_delta;
+						
+						depth := dot(AVector(4, float32).{depth_0, u, v, 0}, uv_delta);
 						if depth < depth_buffer[y_off * bb.stride + x_off]
 						{
 							depth_buffer[y_off * bb.stride + x_off] = depth;
