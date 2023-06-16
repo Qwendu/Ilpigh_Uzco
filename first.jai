@@ -10,10 +10,7 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 {
 	BACKEND_X64 :: false;
 	OPTIMIZATION : Jai.Optimization_Type:  .VERY_OPTIMIZED;
-	if OPTIMIZATION == .OPTIMIZED || OPTIMIZATION == .VERY_OPTIMIZED
-	{
-		print("Optimizing Build\n");
-	}
+	print("Opt = %\n", OPTIMIZATION);
 	
 	build_name := sprint("Platform %", os);
 	exec_name  := sprint("IU_%",os);
