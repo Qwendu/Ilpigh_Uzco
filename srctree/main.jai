@@ -47,7 +47,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	while atomic_volatile_read(*platform.exit) == 0
 	{
 		DELTA :: 1.0/PHYSICS_FREQUENCY;
-		Frame();
+		Frame("Physics");
 		now := current_time_monotonic();
 
 		input := ifx IGNORE_INPUT then Input.{} else platform.get_Input(platform.window);
@@ -173,6 +173,6 @@ platform : *Platform;
 #import "Vector";
 #import "Matrix";
 #import "Quaternion";
-#import "Tracy";
+#import "Tracy"(true);
 #import "Atomics";
 #import "Sync";

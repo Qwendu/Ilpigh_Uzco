@@ -30,7 +30,9 @@ Frame :: ($frame_name : string = "<UNINITIALIZED>") #expand #no_debug #no_contex
 {
 	#if ENABLE
 	{
-		___tracy_emit_frame_mark(frame_name);
+		DATA :: #run add_To_Data_Segment(frame_name);
+		___tracy_emit_frame_mark_start(DATA);
+		`defer ___tracy_emit_frame_mark_end(DATA);
 	}
 }
 

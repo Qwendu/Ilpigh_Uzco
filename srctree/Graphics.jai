@@ -119,6 +119,7 @@ draw :: (args :*Draw_Args) #c_call
 	while atomic_volatile_read(args.exit) == 0
 	{
 		Profiler.TimeZone();
+		Profiler.Frame("Graphics");
 		buffer : *Draw_Buffer = get_Read_Pointer(command_reader);
 		render_Triangles_In_Draw_Buffer(plt, buffer);
 
