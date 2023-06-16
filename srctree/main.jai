@@ -47,8 +47,9 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	while atomic_volatile_read(*platform.exit) == 0
 	{
 		DELTA :: 1.0/PHYSICS_FREQUENCY;
-		Frame("Physics");
+		Profiler.Frame("Physics");
 		now := current_time_monotonic();
+#import "Tracy"(PROFILER);
 
 		input := ifx IGNORE_INPUT then Input.{} else platform.get_Input(platform.window);
 
@@ -165,7 +166,7 @@ platform : *Platform;
 
 
 
-#import,file "Graphics.jai";
+#import,file "Graphics.jai"(PROFILER);
 #import "Basic";
 
 #import "Async_Buffer";
@@ -173,6 +174,5 @@ platform : *Platform;
 #import "Vector";
 #import "Matrix";
 #import "Quaternion";
-#import "Tracy"(true);
 #import "Atomics";
 #import "Sync";

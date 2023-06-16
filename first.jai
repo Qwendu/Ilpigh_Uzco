@@ -11,6 +11,7 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 	BACKEND_X64 :: false;
 	OPTIMIZATION : Jai.Optimization_Type:  .VERY_OPTIMIZED;
 	print("Opt = %\n", OPTIMIZATION);
+
 	
 	build_name := sprint("Platform %", os);
 	exec_name  := sprint("IU_%",os);
@@ -69,11 +70,19 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 		Jai.set_build_options(options_game    , workspace_game);
 	}
 
+	optimization_string := sprint(#string DONE
+Optimization Level = %,
+	Vectorization = % + %,
+DONE, OPTIMIZATION, ifx options_game.llvm_options.enable_slp_vectorization then "SLP Vectorization" else "", ifx options_game.llvm_options.enable_loop_vectorization then "Loop Vectorization" else "");
+
 	shared_build_string := sprint(#string DONE
 		Game_DLL_Name    : string                        : "%";
 		COMPILATION_MODE : enum {RELEASE; DEVELOPEMENT;} : %;
+		PROFILER :bool : %;
 		ENTRY_FUNCTION_NAME :: "game_entry";
-	DONE, game_name, ".DEVELOPEMENT");
+		OPTIMIZATIONS :: #string DONE2
+% DONE2;
+	DONE, game_name, ".DEVELOPEMENT", OPTIMIZATION >= Jai.Optimization_Type.OPTIMIZED ,optimization_string);
 	
 
 

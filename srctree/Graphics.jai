@@ -1,3 +1,5 @@
+#scope_export
+#module_parameters(PROFILER : bool);
 #import "Common";
 #import "Mesh";
 
@@ -564,7 +566,7 @@ color_shader :: (in : Shader_Input) -> Shader_Output
 
 
 
-Profiler :: #import "Tracy"(true);
+Profiler :: #import "Tracy"(PROFILER);
 #import "Atomics";
 #import "Async_Buffer";
 #import "Basic";

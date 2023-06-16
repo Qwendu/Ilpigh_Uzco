@@ -1,11 +1,6 @@
 #scope_export
 #module_parameters(ENABLE := false);
 
-
-#if ENABLE  #run print("Tracy Enabled\n");
-
-
-
 AppInfo :: (message : string) #expand #no_debug #no_context
 {
 	#if ENABLE
