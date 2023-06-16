@@ -211,7 +211,9 @@ material_sequence : [..] struct {end_vertex : int; material: Material;};
 // Optimization Records, in CSV format
 /*
 Optimization,  Samples, Mean(ms), Sigma(us)
-NONE,          8674,    3.89,     600.45
+NONE,          33094,   3.43,     365.24
+AVector,       33964,   3.17,     261.11
+
 
 */
 //

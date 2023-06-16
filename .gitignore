@@ -46,3 +46,10 @@ tags
 profiling/**/*.tb7
 profiling/**/*.db
 
+
+######################
+##  Tracy
+######################
+profiling/**/*.tracy
+
+
