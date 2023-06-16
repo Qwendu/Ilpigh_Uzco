@@ -70,6 +70,15 @@ Plot :: ($name : string = "<DEFAULT_PLOT>", value : int) #expand #no_debug #no_c
 }
 
 
+Message :: ($message : string) #expand #no_debug #no_context
+{
+	#if ENABLE
+	{
+		___tracy_emit_message(#run add_To_Data_Segment(message), message.count, 0);
+	}
+}
+
+
 
 
 
