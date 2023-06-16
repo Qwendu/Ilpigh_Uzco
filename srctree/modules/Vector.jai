@@ -52,28 +52,65 @@ dot :: (a : $V/Vector, b : V) -> V.T
 operator + :: (a : $V/Vector, b : V) -> V #symmetric
 {
 	r := a;
-	for r.data  r.data[it_index] += b.data[it_index];
+	#insert #run -> string
+	{
+		builder : String_Builder;
+		for 0..V.dim-1
+		{
+			print_to_builder(*builder, "\tr.data[%] += b.data[%];\n", it, it);
+		}
+		insert :=  builder_to_string(*builder);
+		return insert;
+	};
 	return r;
 }
+
 
 operator - :: (a : $V/Vector, b : V) -> V
 {
 	r := a;
-	for r.data  r.data[it_index] -= b.data[it_index];
+	#insert #run -> string
+	{
+		builder : String_Builder;
+		for 0..V.dim-1
+		{
+			print_to_builder(*builder, "\tr.data[%] -= b.data[%];\n", it, it);
+		}
+		insert :=  builder_to_string(*builder);
+		return insert;
+	};
 	return r;
 }
 
 operator * :: (a : $V/Vector, b : V.T) -> V #symmetric
 {	
 	r := a;
-	for r.data  r.data[it_index] *= b;
+	#insert #run -> string
+	{
+		builder : String_Builder;
+		for 0..V.dim-1
+		{
+			print_to_builder(*builder, "\tr.data[%] *= b;\n", it);
+		}
+		insert :=  builder_to_string(*builder);
+		return insert;
+	};
 	return r;
 }
 
 operator / :: (a : $V/Vector, b : V.T) -> V
 {
 	r := a;
-	for r.data  r.data[it_index] /= b;
+	#insert #run -> string
+	{
+		builder : String_Builder;
+		for 0..V.dim-1
+		{
+			print_to_builder(*builder, "\tr.data[%] /= b;\n", it);
+		}
+		insert :=  builder_to_string(*builder);
+		return insert;
+	};
 	return r;
 }
 
@@ -116,5 +153,8 @@ normalize :: (a : $V/Vector, fallback : V) -> V
 	r *= 1/len;
 	return r;
 }
+
+#scope_file
+#import "Basic";
 
 #import "Math";

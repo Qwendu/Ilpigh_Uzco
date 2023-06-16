@@ -123,11 +123,7 @@ draw :: (args :*Draw_Args) #c_call
 		render_Triangles_In_Draw_Buffer(plt, buffer);
 
 		
-		before := current_time_monotonic();
 		plt.update_Window(plt.window);
-		plt.sleep(1);
-		after := current_time_monotonic();
-		Profiler.Plot("Actual Sleep Time", to_milliseconds(after - before));
 	}
 
 	atomic_volatile_write(args.exit, 0);
@@ -214,8 +210,8 @@ material_sequence : [..] struct {end_vertex : int; material: Material;};
 
 // Optimization Records, in CSV format
 /*
-Optimization,  Samples, Mean, Sigma
-
+Optimization,  Samples, Mean(ms), Sigma(us)
+NONE,          8674,    3.89,     600.45
 
 */
 //
