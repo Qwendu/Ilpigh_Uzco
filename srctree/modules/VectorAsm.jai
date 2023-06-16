@@ -86,16 +86,25 @@ operator - :: (a : $V/AVector, b : V) -> V #expand
 operator * :: (a : $V/AVector, b : V.T) -> V #symmetric #expand
 {	
 	r := a;
-	#insert #run -> string
+	#if V.dim == 4 && V.T == float32
 	{
-		builder : String_Builder;
-		for 0..V.dim-1
+		b_vec = V.{b,b,b,b};
+		#asm
 		{
-			print_to_builder(*builder, "\tr.data[%] *= b;\n", it);
+			mulps r, b_vec;
 		}
-		insert :=  builder_to_string(*builder);
-		return insert;
-	};
+	}else{
+		#insert #run -> string
+		{
+			builder : String_Builder;
+			for 0..V.dim-1
+			{
+				print_to_builder(*builder, "\tr.data[%] *= b;\n", it);
+			}
+			insert :=  builder_to_string(*builder);
+			return insert;
+		};
+	}
 	return r;
 }
 
