@@ -211,6 +211,15 @@ depth_screen_space    : [..] float;
 
 material_sequence : [..] struct {end_vertex : int; material: Material;};
 
+
+// Optimization Records, in CSV format
+/*
+Optimization,  Samples, Mean, Sigma
+
+
+*/
+//
+//
 render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 {
 	Profiler.TimeZone(#procedure_name());
@@ -441,15 +450,24 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			{
 				return (a.y == b.y && a.x > b.x) || a.y > b.y;
 			}
+
+
 		
 			det_0_base := det_2d(a,b,pxl);
 			det_1_base := det_2d(b,c,pxl);
 			det_2_base := det_2d(c,a,pxl);
 
-			det_0_delta := b-a;
-			det_1_delta := c-b;
-			det_2_delta := a-c;
+			det_base := Vector(3, s32).{det_0_base, det_1_base, det_2_base};
+			
 
+			_det_0_delta := b-a;
+			_det_1_delta := c-b;
+			_det_2_delta := a-c;
+
+			det_delta_x := Vector(3, s32).{(b-a).x,(c-b).x,(a-c).x};
+			det_delta_y := Vector(3, s32).{(b-a).y,(c-b).y,(a-c).y};
+
+			det := det_base;
 
 			det_0 := det_0_base;
 			det_1 := det_1_base;
@@ -462,23 +480,22 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			u_delta := depth_1 - depth_0;
 			v_delta := depth_2 - depth_0;
 
-			y_off := cast(int)((pxl.y + cast(s32)bb.size.y * FIXEDPOINT_ONE / 2) / FIXEDPOINT_ONE);
+			y_off : s32 = ((pxl.y + cast(s32)bb.size.y * FIXEDPOINT_ONE / 2) / FIXEDPOINT_ONE);
 			while pxl.y < max_tri.y
 			{
 				pxl.x = start.x;
-				x_off := cast(int)((pxl.x + cast(s32)bb.size.x * FIXEDPOINT_ONE / 2) / FIXEDPOINT_ONE);
+				x_off : s32 = ((pxl.x + cast(s32)bb.size.x * FIXEDPOINT_ONE / 2) / FIXEDPOINT_ONE);
 
-				det_0_saved := det_0;
-				det_1_saved := det_1;
-				det_2_saved := det_2;
-
-
+				det_saved := det;
 				while pxl.x < max_tri.x
 				{
-					if(det_0 >= 0 && det_1 >= 0 && det_2 >= 0) {
+					if(det.x >= 0 && det.y >= 0 && det.z >= 0) {
 						// inside the triangle
-						u := det_1/cast(float)area_2;
-						v := det_2/cast(float)area_2;
+						// @Performance This results in divps, we can like with 
+						//  the determinant compute a delta and then just do adds, 
+						//  maybe thats better.
+						u := det.y/cast(float)area_2; 
+						v := det.z/cast(float)area_2;
 						depth := depth_0 + u * u_delta + v * v_delta;
 						if depth < depth_buffer[y_off * bb.stride + x_off]
 						{
@@ -491,16 +508,12 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 							shader_buffer[y_off * bb.stride + x_off] = input;
 						}
 					}
-					det_0 -= det_0_delta.y;
-					det_1 -= det_1_delta.y;
-					det_2 -= det_2_delta.y;
+					det   -= det_delta_y;
+
 					pxl.x += FIXEDPOINT_ONE;
 					x_off += 1;
 				}
-				det_0 = det_0_saved + det_0_delta.x;
-				det_1 = det_1_saved + det_1_delta.x;
-				det_2 = det_2_saved + det_2_delta.x;
-
+				det = det_saved + det_delta_x;
 				pxl.y += FIXEDPOINT_ONE;
 				y_off += 1;
 			}
@@ -552,7 +565,7 @@ color_shader :: (in : Shader_Input) -> Shader_Output
 
 
 
-Profiler :: #import "Tracy";
+Profiler :: #import "Tracy"(true);
 #import "Atomics";
 #import "Async_Buffer";
 #import "Basic";

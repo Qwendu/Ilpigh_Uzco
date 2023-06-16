@@ -38,3 +38,11 @@ tags
 # Persistent undo
 [._]*.un~
 
+
+
+######################
+##  VTunes
+######################
+profiling/**/*.tb7
+profiling/**/*.db
+
