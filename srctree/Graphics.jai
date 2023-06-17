@@ -198,6 +198,12 @@ Draw_Buffer :: struct
 
 loaded_meshes : [..] Mesh;
 
+Active_Instance :: struct
+{
+	instance_to_projection : float4x4;
+	mesh_ptr : * Mesh;
+}
+active_meshes : [..] Active_Instance;
 
 
 screen2 :: Vector(2, s32 /*fixed_point 26.6*/);
@@ -216,6 +222,7 @@ material_sequence : [..] struct {end_vertex : int; material: Material;};
 Optimization,  Samples, Mean(ms), Sigma(us)
 NONE,          33094,   3.43,     365.24
 AVector,       33964,   3.17,     261.11
+MoreAVector,   40103,   2.17,     412.86
 
 
 */
@@ -268,14 +275,8 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	world_to_camera := world_To_Camera(camera);
 	projection := projection_Matrix(fov = camera.fov, aspect = aspect, near = camera.near, far = camera.far);
 
-	Active_Instance :: struct
-	{
-		instance_to_projection : float4x4;
-		mesh_ptr : * Mesh;
-	}
-	
-	active_meshes : [..] Active_Instance;
-	defer array_reset(*active_meshes);
+
+	active_meshes.count = 0;
 	array_reserve(*active_meshes, 100);
 
 	outcode :: (v : float3) -> u8
@@ -331,8 +332,16 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	}
 	n_triangles := n_vertices/3;
 	//log("Vertex Buffer Size = %", n_vertices);
-	if n_vertices   > vertices_screen_space.count  array_resize(*vertices_screen_space, n_vertices);
-	if n_vertices   > depth_screen_space   .count  array_resize(*depth_screen_space,    n_vertices);
+	if n_vertices   > vertices_screen_space.count
+	{
+		Profiler.Message("Resized vertices_screen_space");
+		array_resize(*vertices_screen_space, n_vertices);
+	}
+	if n_vertices   > depth_screen_space.count
+	{
+		array_resize(*depth_screen_space,    n_vertices);
+		Profiler.Message("Resized depth_screen_space");
+	}
 	
 
 	
@@ -530,13 +539,14 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		actual_shader_calls : int = 0;
 		for y:0..bb.size.y-1
 		{
-			for x:0..bb.size.x-1
+			for x: 0..bb.size.x-1
 			{
 				if depth_buffer[y * bb.stride + x] == 1 continue x;
 				actual_shader_calls += 1;
 				out := color_shader(shader_buffer[y * bb.stride + x]);
-				color := out.color.vec * 255.0;
-				pixel := Pixel.{r = xx clamp(color.x, 0, 255), g = xx clamp(color.y, 0, 255), b = xx clamp(color.z, 0, 255)};
+				color := AVector(4, float32).{data = out.color.vec.data};
+				rgb := clamp(color * 255, .{0,0,0,0}, .{255,255,255,255});
+				pixel := Pixel.{r = xx rgb.x, g = xx rgb.y, b = xx rgb.z};
 
 				bb.data[y * bb.stride + x] = pixel;
 			}

@@ -9,7 +9,7 @@ modules          :: "srctree/modules";
 build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 {
 	BACKEND_X64 :: false;
-	OPTIMIZATION : Jai.Optimization_Type:  .DEBUG;
+	OPTIMIZATION : Jai.Optimization_Type:  .VERY_OPTIMIZED;
 	print("Opt = %\n", OPTIMIZATION);
 
 	

@@ -10,21 +10,21 @@ AVector :: struct(dim : int, T : Type)
 	#if dim >= 4  w : T;
 	
 	#place x;
-	data : [dim] T;
+	data : [dim] T = ---;
 	
 	#if dim >= 3
 	{
 	#place x;
-		xy : AVector(2, T);
+		xy : AVector(2, T) = ---;
 	#place y;
-		yz : AVector(2, T);
+		yz : AVector(2, T) = ---;
 	}
 	#if dim >= 4
 	{
 	#place x;
-		xyz : AVector(3, T);
+		xyz : AVector(3, T) = ---;
 	#place y;
-		yzw : AVector(3, T);
+		yzw : AVector(3, T) = ---;
 	}
 }
 
@@ -88,22 +88,13 @@ operator * :: (a : $V/AVector, b : V.T) -> V #symmetric #expand
 	r := a;
 	#if V.dim == 4 && V.T == float32
 	{
-		b_vec = V.{b,b,b,b};
+		b_vec := V.{b,b,b,b};
 		#asm
 		{
 			mulps r, b_vec;
 		}
 	}else{
-		#insert #run -> string
-		{
-			builder : String_Builder;
-			for 0..V.dim-1
-			{
-				print_to_builder(*builder, "\tr.data[%] *= b;\n", it);
-			}
-			insert :=  builder_to_string(*builder);
-			return insert;
-		};
+		#assert false;
 	}
 	return r;
 }
@@ -111,60 +102,42 @@ operator * :: (a : $V/AVector, b : V.T) -> V #symmetric #expand
 operator / :: (a : $V/AVector, b : V.T) -> V #expand
 {
 	r := a;
-	#insert #run -> string
+	#if V.T == float32
 	{
-		builder : String_Builder;
-		for 0..V.dim-1
+		b_v : V.{b,b,b,b};
+		#asm
 		{
-			print_to_builder(*builder, "\tr.data[%] /= b;\n", it);
+			divps r, b_v;
 		}
-		insert :=  builder_to_string(*builder);
-		return insert;
-	};
-	return r;
-}
-
-operator [] :: (a : $V/AVector, idx : int) -> V.T
-{
-	return a.data[idx];
-}
-
-
-length :: (a : $V/AVector) -> V.T
-{
-	discriminant : V.T;
-	for a.data  discriminant += it * it;
-	return sqrt(discriminant);
-}
-
-length_Squared :: (a : $V/AVector) -> V.T
-{
-	discriminant : V.T;
-	for a.data  discriminant += it * it;
-	return discriminant;
-}
-
-cross :: (a : AVector(3,float), b : AVector(3, float)) -> AVector(3, float)
-{
-	r : type_of(a);
-	r.x = a.y * b.z - a.z * b.y;
-	r.y = a.z * b.x - a.x * b.z;
-	r.z = a.x * b.y - a.y * b.x;
+	}else{
+		#assert false;
+	}
 	return r;
 }
 
 
-normalize :: (a : $V/AVector, fallback : V) -> V
+
+
+
+
+clamp :: inline (v : $V/AVector, min : V, max : V) -> V
 {
-	len_squared := length_Squared(a);
-	if len_squared < 0.0001  return fallback;
-	len := sqrt(len_squared);
-	r := a;
-	r *= 1/len;
-	return r;
+	res : V = v;
+	#if V.dim == 4 && V.T == float32
+	{
+		#asm
+		{
+			maxps res, min;
+			minps res, max;
+		}
+	}else{
+		#assert false;
+	}
+	return res;
 }
 
 #scope_file
 #import "Basic";
 
 #import "Math";
+#import "Vector";

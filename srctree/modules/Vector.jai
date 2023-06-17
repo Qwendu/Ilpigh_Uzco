@@ -10,21 +10,21 @@ Vector :: struct(dim : int, T : Type)
 	#if dim >= 4  w : T;
 	
 	#place x;
-	data : [dim] T;
+	data : [dim] T = ---;
 	
 	#if dim >= 3
 	{
 	#place x;
-		xy : Vector(2, T);
+		xy : Vector(2, T) = ---;
 	#place y;
-		yz : Vector(2, T);
+		yz : Vector(2, T) = ---;
 	}
 	#if dim >= 4
 	{
 	#place x;
-		xyz : Vector(3, T);
+		xyz : Vector(3, T) = ---;
 	#place y;
-		yzw : Vector(3, T);
+		yzw : Vector(3, T) = ---;
 	}
 }
 

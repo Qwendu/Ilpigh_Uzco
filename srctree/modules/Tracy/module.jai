@@ -116,8 +116,6 @@ Message :: ($message : string) #expand #no_debug #no_context
 	}
 
 	#load "tracy_bindings.jai";
-	
-	#run print("Tracy is on\n");
 }
 
 Jai :: #import "Compiler";
