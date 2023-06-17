@@ -545,10 +545,14 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 				actual_shader_calls += 1;
 				out := color_shader(shader_buffer[y * bb.stride + x]);
 				color := AVector(4, float32).{data = out.color.vec.data};
-				rgb := clamp(color * 255, .{0,0,0,0}, .{255,255,255,255});
-				pixel := Pixel.{r = xx rgb.x, g = xx rgb.y, b = xx rgb.z};
-
-				bb.data[y * bb.stride + x] = pixel;
+				rgb := convert(clamp(color * 255, .{0,0,0,0}, .{255,255,255,255}), s32);
+				rgb_copy := rgb;
+				shuffle := AVector(16, u8).{x = 0x08,y = 0x04,z = 0x00,w = 0x0C};
+				#asm
+				{
+					pshufb rgb_copy, shuffle;
+				}
+				bb.data[y * bb.stride + x].code = cast,no_check(u32)rgb_copy.x;
 			}
 		}
 		Profiler.Plot("Pixel Shader Calls", actual_shader_calls);

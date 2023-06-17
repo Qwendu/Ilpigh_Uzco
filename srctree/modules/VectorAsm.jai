@@ -117,6 +117,23 @@ operator / :: (a : $V/AVector, b : V.T) -> V #expand
 
 
 
+convert :: (a : AVector($N, $T), $to : Type) -> AVector(N, to)
+{
+	#assert to == s32 || to == float32;
+	#assert N == 4;
+	#assert T == s32 || T == float32;
+	res : AVector(N, to) = ---;
+	#if T == float32 && to == s32
+	{
+		#asm
+		{
+			cvttps2dq res, a;
+		}
+	}else{
+		#assert false;
+	}
+	return res;
+}
 
 
 

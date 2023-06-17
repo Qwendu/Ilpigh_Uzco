@@ -60,6 +60,13 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 		options_game.output_path = "binaries";
 		options_game.dead_code_elimination = .NONE;
 
+		if options_game.backend == .LLVM && OPTIMIZATION >= .OPTIMIZED
+		{
+			print("Outputting llvm ir\n");
+			options_game.llvm_options.output_llvm_ir_before_optimizations = true;
+			options_game.llvm_options.output_llvm_ir = true;
+		}
+
 		Jai.set_optimization(*options_game, OPTIMIZATION);
 
 		import : [..] string;
