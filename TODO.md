@@ -11,3 +11,6 @@
 	- [ ] Jai Shaders
 	- [ ] Font Rendering
 - [ ] Add custom context for the platform layer
+- [ ] Memory Allocators for Graphics Subsystem
+	- [ ] Large Page support
+	- [ ] Arena Allocators

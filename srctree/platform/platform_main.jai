@@ -15,7 +15,7 @@ main :: ()
 		platform_context.update_Window = xx update_Window;
 		platform_context.get_BackBuffer = xx get_BackBuffer;
 		platform_context.get_Input = get_Input;
-		platform_context.window = xx create_Window("Ilpigh Uzco", .{400, 300});
+		platform_context.window = xx create_Window("Ilpigh Uzco", .{800, 600});
 		platform_context.sleep = sleep;
 	}
 

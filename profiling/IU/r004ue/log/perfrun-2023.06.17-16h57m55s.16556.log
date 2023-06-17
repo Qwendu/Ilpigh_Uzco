@@ -1,0 +1,106 @@
+126 [8464] INFO perfrun.launcher <> - Launcher main begin
+132 [8464] INFO perfrun.launcher <> - MessageCatalogInit finished
+132 [8464] INFO perfrun.launcher <> - Launcher instance created
+133 [8464] INFO perfrun.launcher <> - argc = 7; cmdline = C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin64\amplxe-runss.exe --ui-output-format xml --ui-output-fd 1172 --option-file D:\dev\projects\Ilpigh_Uzco\profiling\IU\r004ue\config\runsa.options 
+155 [8464] INFO perfrun.launcher <> - New signal handler callback was added
+256 [8464] INFO perfrun.launcher <> - create msngr2::ICliToolContext
+257 [8464] INFO perfrun.launcher <> - create file finder object
+257 [8464] INFO perfrun.launcher <> - create a result directory: pattern = D:\dev\projects\Ilpigh_Uzco\profiling\IU\r004ue pid = 4294967295
+263 [8464] INFO perfrun.launcher <> - create data directory = D:\dev\projects\Ilpigh_Uzco\profiling\IU\r004ue\data.0
+263 [8464] INFO perfrun.launcher <> - Creating the master collection flag
+269 [8464] INFO perfrun.launcher <> - Done creating the master collection flag
+270 [7148] INFO perfrun.launcher <> - plugin [remoteplug] was disabled because it doesn't support the given collection type.
+271 [7148] INFO perfrun.sdk <> - Allocating TMU :D:\dev\projects\Ilpigh_Uzco\profiling\IU\r004ue\data.0\systemcollector-16556-GardenShedGoldenBox.sc
+271 [7148] INFO perfrun.launcher <> - plugin [] was disabled because it doesn't support the given collection type.
+275 [7148] INFO perfrun.launcher <> - plugin [] was disabled because it doesn't support the given collection type.
+275 [7148] INFO perfrun.launcher <> - plugin [gpu] was disabled because it doesn't support the given collection type.
+275 [7148] INFO perfrun.launcher <> - plugin [etw.kernel] was disabled because it doesn't support the given collection type.
+275 [7148] INFO perfrun.launcher <> - plugin [etw.dx] was disabled because it doesn't support the given collection type.
+275 [7148] INFO perfrun.launcher <> - plugin [etw.wsa] was disabled because it doesn't support the given collection type.
+275 [7148] INFO perfrun.mrte <> - Disabling mrte collector because mrte-mode option is set as native
+275 [7148] INFO perfrun.launcher <> - plugin [mrte] was disabled because it doesn't support the given collection type.
+275 [7148] INFO perfrun.launcher <> - plugin [emon] was disabled because it doesn't support the given collection type.
+276 [7148] INFO perfrun.launcher <> - plugin [cuscol] was disabled because it doesn't support the given collection type.
+276 [7148] INFO perfrun.launcher <> - plugin [stdsrc] was disabled because it doesn't support the given collection type.
+276 [7148] INFO perfrun.sdk <> - runCmd: "C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin64\sep.exe" -dry-run -ec CPU_CLK_UNHALTED.THREAD:sa=2400000,CPU_CLK_UNHALTED.REF_TSC:sample:sa=2400000,INST_RETIRED.ANY:sample:sa=2400000,CPU_CLK_UNHALTED.DISTRIBUTED:sa=2400000,CPU_CLK_UNHALTED.THREAD_P,CYCLE_ACTIVITY.STALLS_MEM_ANY,CYCLE_ACTIVITY.STALLS_TOTAL,EXE_ACTIVITY.1_PORTS_UTIL,EXE_ACTIVITY.2_PORTS_UTIL,EXE_ACTIVITY.BOUND_ON_STORES,FRONTEND_RETIRED.LATENCY_GE_4,IDQ_UOPS_NOT_DELIVERED.CORE,INT_MISC.RECOVERY_CYCLES:cmask=1:e=yes,INT_MISC.UOP_DROPPING,TOPDOWN.BACKEND_BOUND_SLOTS,TOPDOWN.SLOTS,UOPS_RETIRED.SLOTS,BACLEARS.ANY,BR_MISP_RETIRED.ALL_BRANCHES,DSB2MITE_SWITCHES.PENALTY_CYCLES,FRONTEND_RETIRED.ANY_DSB_MISS,FRONTEND_RETIRED.DSB_MISS,FRONTEND_RETIRED.L2_MISS,FRONTEND_RETIRED.LATENCY_GE_16,FRONTEND_RETIRED.LATENCY_GE_2_BUBBLES_GE_1,FRONTEND_RETIRED.STLB_MISS,ICACHE_16B.IFDATA_STALL,ICACHE_64B.IFTAG_STALL,IDQ.DSB_CYCLES_ANY,IDQ.DSB_CYCLES_OK,IDQ.DSB_UOPS,IDQ.MITE_CYCLES_ANY,IDQ.MITE_CYCLES_OK,IDQ.MITE_UOPS,IDQ.MS_SWITCHES,IDQ.MS_UOPS,IDQ_UOPS_NOT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE,ILD_STALL.LCP,INT_MISC.CLEAR_RESTEER_CYCLES,LSD.CYCLES_ACTIVE,LSD.CYCLES_OK,LSD.UOPS,MACHINE_CLEARS.COUNT,CYCLE_ACTIVITY.CYCLES_L1D_MISS,CYCLE_ACTIVITY.CYCLES_MEM_ANY,CYCLE_ACTIVITY.STALLS_L1D_MISS,CYCLE_ACTIVITY.STALLS_L2_MISS,CYCLE_ACTIVITY.STALLS_L3_MISS,DTLB_LOAD_MISSES.STLB_HIT:cmask=1,DTLB_LOAD_MISSES.WALK_ACTIVE,DTLB_STORE_MISSES.STLB_HIT:cmask=1,DTLB_STORE_MISSES.WALK_ACTIVE,L1D_PEND_MISS.FB_FULL,L1D_PEND_MISS.FB_FULL_PERIODS,L1D_PEND_MISS.L2_STALL,L1D_PEND_MISS.PENDING,L2_RQSTS.ALL_RFO,L2_RQSTS.RFO_HIT,LD_BLOCKS.NO_SR,LD_BLOCKS.STORE_FORWARD,LD_BLOCKS_PARTIAL.ADDRESS_ALIAS,MEM_INST_RETIRED.ALL_STORES,MEM_INST_RETIRED.LOCK_LOADS,MEM_INST_RETIRED.SPLIT_LOADS,MEM_INST_RETIRED.SPLIT_STORES,MEM_INST_RETIRED.STLB_MISS_LOADS,MEM_INST_RETIRED.STLB_MISS_STORES,MEM_LOAD_L3_HIT_RETIRED.XSNP_FWD,MEM_LOAD_L3_HIT_RETIRED.XSNP_MISS,MEM_LOAD_L3_HIT_RETIRED.XSNP_NO_FWD,MEM_LOAD_RETIRED.FB_HIT,MEM_LOAD_RETIRED.L1_HIT,MEM_LOAD_RETIRED.L1_MISS,MEM_LOAD_RETIRED.L2_HIT,MEM_LOAD_RETIRED.L3_HIT,MEM_LOAD_RETIRED.L3_MISS,OFFCORE_REQUESTS_OUTSTANDING.ALL_DATA_RD:cmask=4,OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD,OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO,ARITH.DIVIDER_ACTIVE,FP_ARITH_INST_RETIRED.128B_PACKED_DOUBLE,FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE,FP_ARITH_INST_RETIRED.256B_PACKED_DOUBLE,FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE,FP_ARITH_INST_RETIRED.512B_PACKED_DOUBLE,FP_ARITH_INST_RETIRED.512B_PACKED_SINGLE,FP_ARITH_INST_RETIRED.SCALAR_DOUBLE,FP_ARITH_INST_RETIRED.SCALAR_SINGLE,MISC_RETIRED.PAUSE_INST,RESOURCE_STALLS.SCOREBOARD,UOPS_DECODED.DEC0,UOPS_DECODED.DEC0:cmask=1,UOPS_DISPATCHED.PORT_0,UOPS_DISPATCHED.PORT_1,UOPS_DISPATCHED.PORT_2_3,UOPS_DISPATCHED.PORT_4_9,UOPS_DISPATCHED.PORT_5,UOPS_DISPATCHED.PORT_6,UOPS_DISPATCHED.PORT_7_8,UOPS_EXECUTED.CYCLES_GE_3,UOPS_EXECUTED.THREAD,UOPS_EXECUTED.X87,UOPS_ISSUED.ANY,UOPS_ISSUED.VECTOR_WIDTH_MISMATCH,ASSISTS.ANY,BR_INST_RETIRED.ALL_BRANCHES,INST_RETIRED.NOP,MEM_INST_RETIRED.ANY,OCR.DEMAND_RFO.L3_HIT.SNOOP_HITM,OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD,OCR.STREAMING_WR.ANY_RESPONSE,OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HITM,UNC_MC0_RDCAS_COUNT_FREERUN,UNC_MC0_WRCAS_COUNT_FREERUN,UNC_MC1_RDCAS_COUNT_FREERUN,UNC_MC1_WRCAS_COUNT_FREERUN -experimental
+281 [7148] INFO perfrun.sdk <> - runCmd started PID 18140
+482 [7148] INFO perfrun.launcher <> - plugin [vtsspp] was disabled because it doesn't support the given collection type.
+483 [7148] INFO perfrun.launcher <> - plugin [] was disabled because it doesn't support the given collection type.
+483 [7148] INFO perfrun.launcher <> - plugin [aoclprofile] was disabled because it doesn't support the given collection type.
+483 [7148] INFO perfrun.tpss <> - initialize tpss controller
+483 [7148] INFO perfrun.launcher <> - plugin [tpss] was disabled because it doesn't support the given collection type.
+483 [7148] INFO perfrun.launcher <> - plugin [] was disabled because it doesn't support the given collection type.
+483 [7148] INFO perfrun.launcher <> - plugin [] was disabled because it doesn't support the given collection type.
+483 [7148] INFO perfrun.launcher <> - plugin [] was disabled because it doesn't support the given collection type.
+483 [7148] INFO perfrun.launcher <> - plugin [] was disabled because it doesn't support the given collection type.
+483 [7148] INFO perfrun.launcher <> - plugin [power] was disabled because it doesn't support the given collection type.
+483 [7148] INFO perfrun.launcher <> - plugin [hwloc] was disabled because it doesn't support the given collection type.
+483 [7148] INFO perfrun.launcher <> - plugin [ipmwatch] was disabled because it doesn't support the given collection type.
+483 [7148] INFO perfrun.launcher <> - plugin [os_counters] was disabled because it doesn't support the given collection type.
+483 [7148] INFO perfrun.launcher <> - plugin [l0_metrics] was disabled because it doesn't support the given collection type.
+483 [8464] INFO perfrun.launcher <> - set environment variable: PATH = C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin32\runtime;C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin64\runtime;C:\VulkanSDK\1.3.211.0\Bin;C:\Program Files\Alacritty\;C:\VulkanSDK\1.2.189.2\Bin;C:\Program Files\Common Files\Oracle\Java\javapath;C:\windows\system32;C:\windows;C:\windows\System32\Wbem;C:\windows\System32\WindowsPowerShell\v1.0\;C:\windows\System32\OpenSSH\;C:\Program Files\LLVM\bin;C:\Program Files\Git\cmd;C:\Program Files\CMake\bin;C:\Program Files\dotnet\;C:\Program Files\wooting-analog-sdk\;C:\Program Files\Microsoft SQL Server\130\Tools\Binn\;C:\Program Files\Docker\Docker\resources\bin;C:\Users\sebpf\.cargo\bin;C:\Users\sebpf\AppData\Local\Microsoft\WindowsApps;C:\Users\sebpf\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\sebpf\AppData\Local\GitHubDesktop\bin;C:\Users\sebpf\.dotnet\tools;C:\Users\sebpf\AppData\Local\Programs\Hyper\resources\bin;C:\Users\sebpf\AppData\Local\gitkraken\bin;C:\Users\sebpf\AppData\Local\Programs\MiKTeX\miktex\bin\x64\;D:\dev\tools\.Compilers\Jai\jai\bin;D:\dev\tools\.BinaryAnalysis\.Debugger\RemedyBG\Windows\remedybg_0_3_8_6\
+483 [8464] INFO perfrun.launcher <> - set environment variable: INTEL_LIBITTNOTIFY32 = C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin32\runtime\ittnotify_collector.dll
+483 [8464] INFO perfrun.launcher <> - set environment variable: INTEL_LIBITTNOTIFY64 = C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin64\runtime\ittnotify_collector.dll
+483 [8464] INFO perfrun.launcher <> - set environment variable: INTEL_ITTNOTIFY_GROUPS = 
+483 [8464] INFO perfrun.launcher <> - set environment variable: INTEL_JIT_PROFILER32 = C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin32\runtime\ittnotify_collector.dll
+483 [8464] INFO perfrun.launcher <> - set environment variable: INTEL_JIT_PROFILER64 = C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin64\runtime\ittnotify_collector.dll
+483 [8464] INFO perfrun.launcher <> - set environment variable: VS_PROFILER = ittnotify_collector.dll
+483 [8464] INFO perfrun.launcher <> - set environment variable: OMP_TOOL_LIBRARIES = C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin32\runtime\ittnotify_collector.dll;C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin64\runtime\ittnotify_collector.dll
+483 [8464] INFO perfrun.launcher <> - set environment variable: ENABLE_JITPROFILING = 1
+484 [8464] INFO perfrun.launcher <> - set environment variable: CL_CONFIG_USE_VTUNE = True
+484 [8464] INFO perfrun.launcher <> - set environment variable: KMP_FORKJOIN_FRAMES = 0
+484 [8464] INFO perfrun.launcher <> - set environment variable: KMP_FORKJOIN_FRAMES_MODE = 0
+484 [8464] INFO perfrun.launcher <> - set environment variable: OMP_TOOL = disabled
+485 [8464] INFO perfrun.launcher <> - RpcServer: run RPC server to handle requests
+508 [8464] INFO perfrun.sdk <> - IProcessUtil: the given executable 'D:\dev\projects\Ilpigh_Uzco\binaries\IU_WINDOWS.exe' is valid.
+508 [8464] INFO perfrun.launcher <> - Launcher: command line to start before modification = D:\dev\projects\Ilpigh_Uzco\binaries\IU_WINDOWS.exe
+508 [8464] INFO perfrun.launcher <> - Launcher: command line to start after modification = D:\dev\projects\Ilpigh_Uzco\binaries\IU_WINDOWS.exe
+508 [8464] INFO perfrun.launcher <> - ProcessCreator object was created
+514 [8464] INFO perfrun.launcher <> - Launcher: the process was started in suspend mode
+517 [7148] INFO perfrun.itt <> - pause itt controller
+517 [7148] INFO perfrun.sep <> - collection is not started
+517 [7148] INFO perfrun.launcher <> - Messenger::say: Peak bandwidth measurement started.
+4389 [7148] INFO perfrun.launcher <> - Messenger::say: Peak bandwidth measurement finished.
+4396 [7148] INFO perfrun.itt <> - start itt controller for pid #14020
+4398 [7148] INFO perfrun.sdk <> - runCmd: "C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin64\sep.exe" -start -experimental -uem timer=10 -em factor=5 -sp -p-state trigger=CPU_CLK_UNHALTED.REF_TSC -out "D:\dev\projects\Ilpigh_Uzco\profiling\IU\r004ue\data.0\sep1bec.20230617T165800.336404" -ec INST_RETIRED.ANY:sample:sa=2400000,CPU_CLK_UNHALTED.THREAD:sa=2400000,CPU_CLK_UNHALTED.REF_TSC:sample:sa=2400000,TOPDOWN.SLOTS,UOPS_DECODED.DEC0,BACLEARS.ANY,DSB2MITE_SWITCHES.PENALTY_CYCLES,ICACHE_16B.IFDATA_STALL,CPU_CLK_UNHALTED.DISTRIBUTED:sa=2400000,CPU_CLK_UNHALTED.THREAD_P,CYCLE_ACTIVITY.STALLS_MEM_ANY,CYCLE_ACTIVITY.STALLS_TOTAL,UOPS_DECODED.DEC0:cmask=1,ICACHE_64B.IFTAG_STALL,IDQ.DSB_CYCLES_ANY,IDQ.DSB_CYCLES_OK,EXE_ACTIVITY.1_PORTS_UTIL,EXE_ACTIVITY.2_PORTS_UTIL,EXE_ACTIVITY.BOUND_ON_STORES,FRONTEND_RETIRED.LATENCY_GE_4,IDQ.DSB_UOPS,IDQ.MITE_CYCLES_ANY,IDQ.MITE_CYCLES_OK,IDQ.MITE_UOPS,IDQ_UOPS_NOT_DELIVERED.CORE,INT_MISC.RECOVERY_CYCLES:cmask=1:e=yes,INT_MISC.UOP_DROPPING,TOPDOWN.BACKEND_BOUND_SLOTS,IDQ.MS_SWITCHES,IDQ.MS_UOPS,ILD_STALL.LCP,LSD.CYCLES_ACTIVE,UOPS_RETIRED.SLOTS,BR_MISP_RETIRED.ALL_BRANCHES,FRONTEND_RETIRED.ANY_DSB_MISS,LSD.CYCLES_OK,LSD.UOPS,CYCLE_ACTIVITY.CYCLES_L1D_MISS,CYCLE_ACTIVITY.STALLS_L1D_MISS,FRONTEND_RETIRED.DSB_MISS,CYCLE_ACTIVITY.STALLS_L2_MISS,CYCLE_ACTIVITY.STALLS_L3_MISS,DTLB_LOAD_MISSES.STLB_HIT:cmask=1,DTLB_LOAD_MISSES.WALK_ACTIVE,FRONTEND_RETIRED.L2_MISS,DTLB_STORE_MISSES.STLB_HIT:cmask=1,DTLB_STORE_MISSES.WALK_ACTIVE,L1D_PEND_MISS.FB_FULL,L1D_PEND_MISS.FB_FULL_PERIODS,FRONTEND_RETIRED.LATENCY_GE_16,L1D_PEND_MISS.L2_STALL,L1D_PEND_MISS.PENDING,L2_RQSTS.ALL_RFO,L2_RQSTS.RFO_HIT,FRONTEND_RETIRED.LATENCY_GE_2_BUBBLES_GE_1,LD_BLOCKS.NO_SR,LD_BLOCKS.STORE_FORWARD,LD_BLOCKS_PARTIAL.ADDRESS_ALIAS,MEM_INST_RETIRED.ALL_STORES,FRONTEND_RETIRED.STLB_MISS,IDQ_UOPS_NOT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE,INT_MISC.CLEAR_RESTEER_CYCLES,MACHINE_CLEARS.COUNT,MEM_INST_RETIRED.LOCK_LOADS,MEM_INST_RETIRED.SPLIT_LOADS,MEM_INST_RETIRED.SPLIT_STORES,MEM_INST_RETIRED.STLB_MISS_LOADS,CYCLE_ACTIVITY.CYCLES_MEM_ANY,ARITH.DIVIDER_ACTIVE,FP_ARITH_INST_RETIRED.128B_PACKED_DOUBLE,FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE,MEM_INST_RETIRED.STLB_MISS_STORES,MEM_LOAD_L3_HIT_RETIRED.XSNP_FWD,MEM_LOAD_L3_HIT_RETIRED.XSNP_MISS,MEM_LOAD_L3_HIT_RETIRED.XSNP_NO_FWD,FP_ARITH_INST_RETIRED.256B_PACKED_DOUBLE,FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE,FP_ARITH_INST_RETIRED.512B_PACKED_DOUBLE,FP_ARITH_INST_RETIRED.512B_PACKED_SINGLE,MEM_LOAD_RETIRED.FB_HIT,MEM_LOAD_RETIRED.L1_HIT,MEM_LOAD_RETIRED.L1_MISS,MEM_LOAD_RETIRED.L2_HIT,FP_ARITH_INST_RETIRED.SCALAR_DOUBLE,FP_ARITH_INST_RETIRED.SCALAR_SINGLE,MISC_RETIRED.PAUSE_INST,RESOURCE_STALLS.SCOREBOARD,MEM_LOAD_RETIRED.L3_HIT,MEM_LOAD_RETIRED.L3_MISS,OFFCORE_REQUESTS_OUTSTANDING.ALL_DATA_RD:cmask=4,OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD,UOPS_DISPATCHED.PORT_0,UOPS_DISPATCHED.PORT_1,UOPS_DISPATCHED.PORT_2_3,UOPS_DISPATCHED.PORT_4_9,OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO,MEM_INST_RETIRED.ANY,OCR.DEMAND_RFO.L3_HIT.SNOOP_HITM,OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD,UOPS_DISPATCHED.PORT_5,UOPS_DISPATCHED.PORT_6,UOPS_DISPATCHED.PORT_7_8,UOPS_EXECUTED.CYCLES_GE_3,OCR.STREAMING_WR.ANY_RESPONSE,OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HITM,UOPS_EXECUTED.THREAD,UOPS_EXECUTED.X87,UOPS_ISSUED.ANY,UOPS_ISSUED.VECTOR_WIDTH_MISMATCH,ASSISTS.ANY,BR_INST_RETIRED.ALL_BRANCHES,INST_RETIRED.NOP,UNC_MC0_RDCAS_COUNT_FREERUN,UNC_MC0_WRCAS_COUNT_FREERUN,UNC_MC1_RDCAS_COUNT_FREERUN,UNC_MC1_WRCAS_COUNT_FREERUN, -d 0 -uem factor=10
+4404 [7148] INFO perfrun.sdk <> - runCmd started PID 16748
+5406 [8464] INFO perfrun.launcher <> - Launcher: all plugins were started
+5406 [8464] INFO perfrun.launcher <> - DeadlineTimer is going to be constructed
+5407 [8464] INFO perfrun.launcher <> - DeadlineTimer: a callback was added
+5417 [8464] INFO perfrun.launcher <> - DirectoryMonitor object was created
+5418 [8464] INFO perfrun.launcher <> - DirectoryMonitor: a callback was added
+5418 [8464] INFO perfrun.launcher <> - DirectoryMonitor was started with pingTime = 1000
+5418 [8464] INFO perfrun.launcher <> - DeadlineTimer is going to be constructed
+5418 [8464] INFO perfrun.launcher <> - DeadlineTimer: a callback was added
+5418 [8464] INFO perfrun.launcher <> - DeadlineTimer is going to be constructed
+5419 [8464] INFO perfrun.launcher <> - DeadlineTimer: a callback was added
+5426 [8464] INFO perfrun.launcher <> - Launcher: resume the profiled application and  wait its termination or stop command
+15408 [7148] INFO perfrun.itt <> - resume itt controller
+15408 [7148] INFO perfrun.sdk <> - runCmd: "C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin64\sep.exe" -resume
+15411 [7148] INFO perfrun.sdk <> - runCmd started PID 3000
+15472 [7148] INFO perfrun.sepdk <> - 
+305433 [7148] INFO perfrun.itt <> - detach itt controller
+305434 [7148] INFO perfrun.itt <> - detach itt controller done
+305434 [7148] INFO perfrun.sdk <> - runCmd: "C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin64\sep.exe" -stop
+305449 [7148] INFO perfrun.sdk <> - runCmd started PID 14632
+308829 [13136] WARN perfrun.launcher <> - Messenger::say: The specified data limit of 1000 MB is reached. Data collection is stopped.
+309131 [7148] INFO perfrun.sepdk <> - Sampling successfully stopped.
+
+309131 [7148] INFO perfrun.sepdk <> - Waiting for main SEP process (16748) to finish...
+309132 [7148] INFO perfrun.sepdk <> - Main SEP process finished
+309133 [7148] INFO perfrun.sdk <> - De-allocating TMU: D:\dev\projects\Ilpigh_Uzco\profiling\IU\r004ue\data.0\systemcollector-16556-GardenShedGoldenBox.sc
+309151 [7148] INFO perfrun.system <> - closed the system trace file: D:\dev\projects\Ilpigh_Uzco\profiling\IU\r004ue\data.0\systemcollector-16556-GardenShedGoldenBox.sc
+309391 [8464] WARN perfrun.sdk <> - Unexpected exit status - -1073741510, at file: C:\BB\INNLphep2w6r\b\tmpsafbm1\vcs\perfrun1\sdk\src\utils_win.cpp:553
+309507 [3872] WARN perfrun.launcher <> - Cannot send KILL signal to the process with pid #14020 : Access is denied., at file: C:\BB\INNLphep2w6r\b\tmpsafbm1\vcs\perfrun1\launcher\src\signal_handler_win.cpp:85
+309508 [8464] INFO perfrun.launcher <> - Launcher: the profiled application was terminated  with exit code = -1073741510
+309509 [8464] INFO perfrun.launcher <> - Launcher: all plugins were stopped.
+309509 [8464] INFO perfrun.launcher <> - DeadlineTimer is going to be destroyed
+309510 [8464] INFO perfrun.launcher <> - DeadlineTimer was destroyed
+309510 [8464] INFO perfrun.launcher <> - DeadlineTimer is going to be destroyed
+309510 [8464] INFO perfrun.launcher <> - DeadlineTimer was destroyed
+309510 [8464] INFO perfrun.launcher <> - DeadlineTimer is going to be destroyed
+309510 [8464] INFO perfrun.launcher <> - DeadlineTimer was destroyed
+309510 [8464] INFO perfrun.launcher <> - DirectoryMonitor object was destroyed
+309510 [8464] WARN perfrun.launcher <> - Stop command is ignored because it is received when collection is already stopped, at file: C:\BB\INNLphep2w6r\b\tmpsafbm1\vcs\perfrun1\launcher\src\command_handler.cpp:212
+309511 [8464] INFO perfrun.launcher <> - Application exit code: -1073741510
+309511 [8464] INFO perfrun.launcher <> - Exit code: 4

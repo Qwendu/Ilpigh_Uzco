@@ -1,4 +1,5 @@
 RUN\ GAME :: true;
+VTUNE :: true;
 
 
 Disassembler :: #import,file "srctree/modules/Disassembler.jai"(ENABLE = false);
@@ -10,6 +11,11 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 {
 	BACKEND_X64 :: false;
 	OPTIMIZATION : Jai.Optimization_Type:  .VERY_OPTIMIZED;
+	PROFILER_ENABLED := (OPTIMIZATION >= Jai.Optimization_Type.OPTIMIZED) && !VTUNE;
+	if VTUNE
+	{
+		print("Building for VTune\n");
+	}
 	print("Opt = %\n", OPTIMIZATION);
 
 	
@@ -89,7 +95,7 @@ DONE, OPTIMIZATION, ifx options_game.llvm_options.enable_slp_vectorization then 
 		ENTRY_FUNCTION_NAME :: "game_entry";
 		OPTIMIZATIONS :: #string DONE2
 % DONE2;
-	DONE, game_name, ".DEVELOPEMENT", OPTIMIZATION >= Jai.Optimization_Type.OPTIMIZED ,optimization_string);
+	DONE, game_name, ".DEVELOPEMENT", PROFILER_ENABLED ,optimization_string);
 	
 
 

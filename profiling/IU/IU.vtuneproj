@@ -34,7 +34,7 @@
        <launch.userappworkdir></launch.userappworkdir>
        <launch_app.resume_after type="s32_t">10000</launch_app.resume_after>
        <launch_app.start_paused type="bool">true</launch_app.start_paused>
-       <system.duration>30</system.duration>
+       <system.duration>300</system.duration>
        <launch_app.working_folder>D:\dev\projects\Ilpigh_Uzco\binaries</launch_app.working_folder>
        <context>
         <contextValue>

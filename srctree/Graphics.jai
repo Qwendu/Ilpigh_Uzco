@@ -191,6 +191,10 @@ Draw_Buffer :: struct
 	n_instances : int;
 	instances  : [600] Model_Instance;
 
+	n_light_sources : int;
+	light_sources : [20] Light_Source;
+
+
 	camera : Camera;
 };
 
@@ -218,12 +222,15 @@ material_sequence : [..] struct {end_vertex : int; material: Material;};
 
 
 // Optimization Records, in CSV format
-/*
+/* 400x300
 Optimization,  Samples, Mean(ms), Sigma(us)
 NONE,          33094,   3.43,     365.24
 AVector,       33964,   3.17,     261.11
 MoreAVector,   40103,   2.17,     412.86
-
+*/
+/* 800x600
+Optimization,  Samples, Mean(ms), Sigma(us)
+BASELINE,      24699,   9.6,      534.95
 
 */
 //
