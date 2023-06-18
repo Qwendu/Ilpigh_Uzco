@@ -39,7 +39,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	
 	draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
 
-	position := float3.{y = 1, z = 5};
+	position := float3.{y = 0, z = 1};
 	camera_pitch_yaw : float2 = .{y = -.2};
 	
 	log("Entering Main Loop");
@@ -118,7 +118,6 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 				add_Mesh(draw_buffer, floor_tile);
 			}
 		}
-	
 
 		instance_1 := Model_Instance.{id = 0, model_to_world = mat};
 		instance_2 := Model_Instance.{id = 1, model_to_world = identity(4, float)};
@@ -129,11 +128,11 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		//add_Offset(*instance_1.model_to_world, .{y = -0.1 ,z = -2});
 		//add_Mesh(draw_buffer, instance_1);
 
+
+		add_Light_Source(draw_buffer, .{position = .{0, 1, 2}, range = 10, color = .{1,1,1,1}});
+
+
 		draw_buffer.camera.position = position;
-
-
-		
-		
 		draw_buffer.camera.rotation = rotation;
 		draw_buffer.camera.far = 12;
 		

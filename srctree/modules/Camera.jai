@@ -77,6 +77,11 @@ world_To_Camera :: (cam : *Camera) -> float4x4
 }
 
 
+Cube_Camera :: struct
+{
+
+}
+
 
 #import "Vector";
 #import "Matrix";

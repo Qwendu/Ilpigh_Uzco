@@ -42,11 +42,11 @@ draw :: (args :*Draw_Args) #c_call
 	material_1.color = .{0,1,0,0};
 
 	m1 := array_add(*loaded_meshes);
-	m1.material = .{.{1,0,0, 0}};
+	m1.material = .{.{1,1,0, 0}};
 	m1.vertices = .[
 		.{-1,0,-1},
 		.{1,0,-1},
-		.{0,1,-1},
+		.{0,1,-8},
 		//.{0,0,0}
 	];
 	m1.triangles = .[
@@ -58,8 +58,8 @@ draw :: (args :*Draw_Args) #c_call
 	m2 := array_add(*loaded_meshes);
 	m2.material = .{.{0,1,0, 0}};;
 	m2.vertices = .[
-		.{-1, 0,-1},
-		.{ 1, 0,-1},
+		.{-1, 0,0},
+		.{ 1, 0,-4},
 		.{-1, 0,-10},
 		.{ 1, 0,-10},
 	];
@@ -85,7 +85,7 @@ draw :: (args :*Draw_Args) #c_call
 	height_map_res :: int2.{30, 30};
 	height_map_dims :: float3.{10, .7, 10};
 	height_map := array_add(*loaded_meshes);
-	height_map.material.color = .{.2,.5,.5,1};
+	height_map.material.color = .{1,1,1,1};
 	height_map.vertices = NewArray(height_map_res.x * height_map_res.y, float3);
 	height_map.aabb = generate_AABB_Of_Mesh(height_map);
 	for h: 0..height_map_res.y-1
@@ -123,7 +123,7 @@ draw :: (args :*Draw_Args) #c_call
 		Profiler.TimeZone();
 		Profiler.Frame("Graphics");
 		buffer : *Draw_Buffer = get_Read_Pointer(command_reader);
-		render_Triangles_In_Draw_Buffer(plt, buffer);
+		render_Draw_Buffer(plt, buffer);
 
 		
 		plt.update_Window(plt.window);
@@ -133,6 +133,19 @@ draw :: (args :*Draw_Args) #c_call
 
 }
 
+
+add_Light_Source :: (buffer : *Draw_Buffer, light : Light_Source)
+{
+	using buffer;
+	if n_light_sources < instances.count
+	{
+		light_sources[n_light_sources] = light;
+		n_light_sources += 1;
+	}else{
+		log_error("Too many lights got queued");
+	}
+
+}
 
 add_Mesh :: (buffer : *Draw_Buffer, instance : Model_Instance)
 {
@@ -150,6 +163,7 @@ add_Mesh :: (buffer : *Draw_Buffer, instance : Model_Instance)
 clear_Instances :: (draw_buffer : *Draw_Buffer)
 {
 	draw_buffer.n_instances = 0;
+	draw_buffer.n_light_sources = 0;
 }
 
 Model_Instance :: struct
@@ -172,7 +186,8 @@ draw_logger :: (message : string, data : *void, info : Log_Info)
 
 Shader_Input :: struct
 {
-	uv : float2;
+	position : float3;
+	normal : float3;
 	depth : float;
 	material    : Material;
 };
@@ -205,6 +220,7 @@ loaded_meshes : [..] Mesh;
 Active_Instance :: struct
 {
 	instance_to_projection : float4x4;
+	instance_to_world : float4x4;
 	mesh_ptr : * Mesh;
 }
 active_meshes : [..] Active_Instance;
@@ -215,11 +231,6 @@ screen2 :: Vector(2, s32 /*fixed_point 26.6*/);
 
 depth_buffer : [] float;
 shader_buffer : [] Shader_Input;
-vertices_screen_space : [..] screen2;
-depth_screen_space    : [..] float;
-
-material_sequence : [..] struct {end_vertex : int; material: Material;};
-
 
 // Optimization Records, in CSV format
 /* 400x300
@@ -235,7 +246,7 @@ BASELINE,      24699,   9.6,      534.95
 */
 //
 //
-render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
+render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 {
 	Profiler.TimeZone(#procedure_name());
 	LOG_CLIPPING :: false;
@@ -244,14 +255,11 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	FIXEDPOINT_BITS :: 4;
 	FIXEDPOINT_MASK :: (1<<FIXEDPOINT_BITS)-1;
 	FIXEDPOINT_ONE  ::  1<<FIXEDPOINT_BITS;
-
-	start := current_time_monotonic();
-	defer
-	{
-		end := current_time_monotonic();
-		//log("rendertime %ms", to_milliseconds(end-start));
-	}
 	
+	active_lights :[] Light_Source = draw_buffer.light_sources;
+	active_lights.count = draw_buffer.n_light_sources;
+
+
 	bb := plt.get_BackBuffer(plt.window);
 	aspect : float = bb.size.x/cast(float)bb.size.y;
 
@@ -294,6 +302,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		res += ((cast(u8) (v.x < -1)) & 1) << 1;
 		res += ((cast(u8) (v.y >  1)) & 1) << 2;
 		res += ((cast(u8) (v.y < -1)) & 1) << 3;
+
 		res += ((cast(u8) (v.z >  1)) & 1) << 4;
 		res += ((cast(u8) (v.z < -1)) & 1) << 5;
 		
@@ -307,6 +316,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			instance := *draw_buffer.instances[it];
 			mesh     := *loaded_meshes[instance.id];
 			corners_mesh  :=  aabb_To_Corners(mesh.aabb);
+			instance_to_world      := instance.model_to_world;
 			instance_to_projection := projection * world_to_camera * instance.model_to_world;
 			n_outside := 0;
 
@@ -322,6 +332,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			{
 				active := array_add(*active_meshes);
 				active.instance_to_projection = instance_to_projection;
+				active.instance_to_world = instance_to_world;
 				active.mesh_ptr = mesh;
 			}else{
 				#if LOG_CULLING log("Culled instance %", it);
@@ -331,54 +342,39 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		//log("% Active Instances", active_meshes.count);
 	}
 
-
-	n_vertices := 0;
-	for active_meshes
-	{
-		n_vertices += it.mesh_ptr.triangles.count * 3;
-	}
-	n_triangles := n_vertices/3;
-	//log("Vertex Buffer Size = %", n_vertices);
-	if n_vertices   > vertices_screen_space.count
-	{
-		Profiler.Message("Resized vertices_screen_space");
-		array_resize(*vertices_screen_space, n_vertices);
-	}
-	if n_vertices   > depth_screen_space.count
-	{
-		array_resize(*depth_screen_space,    n_vertices);
-		Profiler.Message("Resized depth_screen_space");
-	}
-	
-
-	
-
 	det_2d :: (a :screen2, b: screen2, p : screen2) -> type_of(screen2.x)
 	{
 		return ((b.x-a.x)*(p.y-a.y) - (b.y-a.y)*(p.x-a.x)) >>FIXEDPOINT_BITS;
 	}
 
 	//
-	//  Translate all vertices and fill the material sequence
+	// Rasterization
 	//
 	{
-		Profiler.TimeZone("Translate");
-		material_sequence.count = 0;
 		factor_x := cast(type_of(screen2.x))FIXEDPOINT_ONE * bb.size.x;
 		factor_y := cast(type_of(screen2.x))FIXEDPOINT_ONE * bb.size.y;
-		vertex_base := 0;
+		Profiler.TimeZone("Rasterization");
 		for active_meshes
 		{
-			idx := vertex_base;
+			mesh := it.mesh_ptr;
 			for triangle, triangle_idx : it.mesh_ptr.triangles
 			{
+				a_mesh := mesh.vertices[triangle.x];
+				b_mesh := mesh.vertices[triangle.y];
+				c_mesh := mesh.vertices[triangle.z];
 				
-				a := project_Point(it.instance_to_projection, it.mesh_ptr.vertices[triangle.x]).xyz;
-				b := project_Point(it.instance_to_projection, it.mesh_ptr.vertices[triangle.y]).xyz;
-				c := project_Point(it.instance_to_projection, it.mesh_ptr.vertices[triangle.z]).xyz;
-				a_out := outcode(a);
-				b_out := outcode(b);
-				c_out := outcode(c);
+				a_world := affine_Transform(it.instance_to_world, a_mesh).xyz;
+				b_world := affine_Transform(it.instance_to_world, b_mesh).xyz;
+				c_world := affine_Transform(it.instance_to_world, c_mesh).xyz;
+	
+				normal := cross(b_world - a_world, c_world - a_world);
+
+				a := project_Point(it.instance_to_projection, a_mesh);
+				b := project_Point(it.instance_to_projection, b_mesh);
+				c := project_Point(it.instance_to_projection, c_mesh);
+				a_out := outcode(a.xyz);
+				b_out := outcode(b.xyz);
+				c_out := outcode(c.xyz);
 
 				if a_out != 0 || b_out != 0 || c_out != 0 
 				{
@@ -386,7 +382,6 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 					continue triangle;
 				}
 
-				// TODO(Qwendo): Clipping
 			
 
 				half :: screen2.{FIXEDPOINT_ONE/2, FIXEDPOINT_ONE/2};
@@ -396,144 +391,118 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 
 				if det_2d(a_s, b_s, c_s) == 0  continue triangle; // dont rasterize 0 area triangles
 
-				vertices_screen_space [idx + 0] = a_s;
-				vertices_screen_space [idx + 1] = b_s;
-				vertices_screen_space [idx + 2] = c_s;
+//------------------------------------------------------------------------------------------------------------------------
+				//
+				//  Rasterization
+				//
+				area_2 := det_2d(a_s, b_s, c_s);
+				min_tri  := screen2.{min(a_s.x, b_s.x, c_s.x), min(a_s.y, b_s.y, c_s.y)};
+				min_tri.x = cast(type_of(screen2.x)) max((-bb.size.x * FIXEDPOINT_ONE)/2, min_tri.x);
+				min_tri.y = cast(type_of(screen2.x)) max((-bb.size.y * FIXEDPOINT_ONE)/2, min_tri.y);
 
-				depth_screen_space[idx + 0] = a.z;
-				depth_screen_space[idx + 1] = b.z;
-				depth_screen_space[idx + 2] = c.z;
-				
-				idx += 3;
-			}
-			if idx != vertex_base
-			{
-				seq := array_add(*material_sequence);
-				seq.end_vertex = idx;
-				seq.material = it.mesh_ptr.material;
-			}
-			vertex_base = idx;
-		}
-		n_vertices  = vertex_base; // Set to the actual number of vertices
-		//log("% Triangles are being rasterized", n_vertices/3);
-		Profiler.Plot("Triangles", n_vertices);
-	}
+				max_tri := screen2.{max(a_s.x, b_s.x, c_s.x), max(a_s.y, b_s.y, c_s.y)};
+				max_tri.x = cast(type_of(screen2.x)) min(( bb.size.x * FIXEDPOINT_ONE)/2, max_tri.x);
+				max_tri.y = cast(type_of(screen2.x)) min(( bb.size.y * FIXEDPOINT_ONE)/2, max_tri.y);
 
-
-
-	
-
-	//
-	// Rasterization
-	//
-	{
-		Profiler.TimeZone("Rasterization");
-		triangle_start := 0;
-		material_sequence_idx := 0;
-		while triangle_start < n_vertices
-		{
-			if material_sequence[material_sequence_idx].end_vertex <= triangle_start
-			{
-				material_sequence_idx += 1;
-			}
-			seq := *material_sequence[material_sequence_idx];
-			assert(seq.end_vertex > triangle_start);
-
-			defer triangle_start += 3;
-			a := vertices_screen_space[triangle_start + 0];
-			b := vertices_screen_space[triangle_start + 1];
-			c := vertices_screen_space[triangle_start + 2];
-			area_2 := det_2d(a, b, c);
-			min_tri  := screen2.{min(a.x, b.x, c.x), min(a.y, b.y, c.y)};
-			min_tri.x = cast(type_of(screen2.x)) max((-bb.size.x * FIXEDPOINT_ONE)/2, min_tri.x);
-			min_tri.y = cast(type_of(screen2.x)) max((-bb.size.y * FIXEDPOINT_ONE)/2, min_tri.y);
-
-			max_tri := screen2.{max(a.x, b.x, c.x), max(a.y, b.y, c.y)};
-			max_tri.x = cast(type_of(screen2.x)) min(( bb.size.x * FIXEDPOINT_ONE)/2, max_tri.x);
-			max_tri.y = cast(type_of(screen2.x)) min(( bb.size.y * FIXEDPOINT_ONE)/2, max_tri.y);
-
-			pxl := min_tri;
-			round :: (p : screen2) -> screen2 #expand
-			{
-				res := p;
-				res.x = xx (res.x + FIXEDPOINT_MASK) & ~FIXEDPOINT_MASK;
-				res.y = xx (res.y + FIXEDPOINT_MASK) & ~FIXEDPOINT_MASK;
-				return res;
-			}
-			pxl = round(pxl);
-			start := pxl;
-
-			isTopLeft :: (a : screen2, b : screen2) -> bool
-			{
-				return (a.y == b.y && a.x > b.x) || a.y > b.y;
-			}
-
-
-		
-			det_0_base := det_2d(a,b,pxl);
-			det_1_base := det_2d(b,c,pxl);
-			det_2_base := det_2d(c,a,pxl);
-
-			det_base := AVector(4, s32).{det_0_base, det_1_base, det_2_base, 0};
-			
-			det_delta_x := AVector(4, s32).{(b-a).x,(c-b).x,(a-c).x, 0};
-			det_delta_y := AVector(4, s32).{(b-a).y,(c-b).y,(a-c).y, 0};
-	
-
-			det := det_base;
-
-			det_0 := det_0_base;
-			det_1 := det_1_base;
-			det_2 := det_2_base;
-
-			depth_1 := depth_screen_space[triangle_start + 0];
-			depth_2 := depth_screen_space[triangle_start + 1];
-			depth_0 := depth_screen_space[triangle_start + 2];
-
-
-
-			u_delta := depth_1 - depth_0;
-			v_delta := depth_2 - depth_0;
-
-			uv_delta := AVector(4, float32).{1, u_delta, v_delta, 0};
-
-			y_off : s32 = ((pxl.y + cast(s32)bb.size.y * FIXEDPOINT_ONE / 2) / FIXEDPOINT_ONE);
-			while pxl.y < max_tri.y
-			{
-				pxl.x = start.x;
-				x_off : s32 = ((pxl.x + cast(s32)bb.size.x * FIXEDPOINT_ONE / 2) / FIXEDPOINT_ONE);
-
-				det_saved := det;
-				while pxl.x < max_tri.x
+				pxl := min_tri;
+				round :: (p : screen2) -> screen2 #expand
 				{
-					if(det.x >= 0 && det.y >= 0 && det.z >= 0) {
-						// inside the triangle
-						// @Performance This results in divps, we can like with 
-						//  the determinant compute a delta and then just do adds, 
-						//  maybe thats better.
-						u := det.y/cast(float)area_2; 
-						v := det.z/cast(float)area_2;
-						
-						depth := dot(AVector(4, float32).{depth_0, u, v, 0}, uv_delta);
-						if depth < depth_buffer[y_off * bb.stride + x_off]
-						{
-							depth_buffer[y_off * bb.stride + x_off] = depth;
-							input := Shader_Input.{
-								uv = .{u,v},
-								depth = depth,
-								material = seq.material
-							};
-							shader_buffer[y_off * bb.stride + x_off] = input;
-						}
-					}
-					det   = det - det_delta_y;
-
-					pxl.x += FIXEDPOINT_ONE;
-					x_off += 1;
+					res := p;
+					res.x = xx (res.x + FIXEDPOINT_MASK) & ~FIXEDPOINT_MASK;
+					res.y = xx (res.y + FIXEDPOINT_MASK) & ~FIXEDPOINT_MASK;
+					return res;
 				}
-				det = det_saved + det_delta_x;
-				pxl.y += FIXEDPOINT_ONE;
-				y_off += 1;
+				pxl = round(pxl);
+				start := pxl;
+
+				isTopLeft :: (a : screen2, b : screen2) -> bool
+				{
+					return (a.y == b.y && a.x > b.x) || a.y > b.y;
+				}
+
+
+			
+				det_0_base := det_2d(a_s,b_s,pxl);
+				det_1_base := det_2d(b_s,c_s,pxl);
+				det_2_base := det_2d(c_s,a_s,pxl);
+
+				det_base := AVector(4, s32).{det_0_base, det_1_base, det_2_base, 0};
+				
+				det_delta_x := AVector(4, s32).{(b_s-a_s).x,(c_s-b_s).x,(a_s-c_s).x, 0};
+				det_delta_y := AVector(4, s32).{(b_s-a_s).y,(c_s-b_s).y,(a_s-c_s).y, 0};
+		
+
+				det := det_base;
+
+				det_0 := det_0_base;
+				det_1 := det_1_base;
+				det_2 := det_2_base;
+
+				depth_1 := a.z;
+				depth_2 := b.z;
+				depth_0 := c.z;
+
+				u_delta := depth_1 - depth_0;
+				v_delta := depth_2 - depth_0;
+				
+
+				a_p := a_world/a.w;
+				b_p := b_world/b.w;
+				c_p := c_world/c.w;
+
+				v0_2 := 1/a.w;
+				v1_2 := 1/b.w;
+				v2_2 := 1/c.w;
+
+				uv_delta := AVector(4, float32).{1, u_delta, v_delta, 0};
+
+				y_off : s32 = ((pxl.y + cast(s32)bb.size.y * FIXEDPOINT_ONE / 2) / FIXEDPOINT_ONE);
+				while pxl.y < max_tri.y
+				{
+					pxl.x = start.x;
+					x_off : s32 = ((pxl.x + cast(s32)bb.size.x * FIXEDPOINT_ONE / 2) / FIXEDPOINT_ONE);
+
+					det_saved := det;
+					while pxl.x < max_tri.x
+					{
+						if(det.x >= 0 && det.y >= 0 && det.z >= 0) {
+							// inside the triangle
+							// @Performance This results in divps, we can like with 
+							//  the determinant compute a delta and then just do adds, 
+							//  maybe thats better.
+							u := det.y/cast(float)area_2; 
+							v := det.z/cast(float)area_2;
+							
+							depth := dot(AVector(4, float32).{depth_0, u, v, 0}, uv_delta);
+							if depth < depth_buffer[y_off * bb.stride + x_off]
+							{
+								// Bug, perspective incorrect interpolation! 
+								detf := convert(det, float32)/cast(float)area_2;
+								position : float3;
+								denom := (detf.y * v0_2 + detf.z * v1_2 + detf.x * v2_2);
+								position = (a_p * detf.y + b_p * detf.z + c_p * detf.x)/denom;
+								
+				
+								depth_buffer[y_off * bb.stride + x_off] = depth;
+								input := Shader_Input.{
+									position = position,
+									normal = normal,
+									depth = depth,
+									material = mesh.material
+								};
+								shader_buffer[y_off * bb.stride + x_off] = input;
+							}
+						}
+						det   = det - det_delta_y;
+
+						pxl.x += FIXEDPOINT_ONE;
+						x_off += 1;
+					}
+					det = det_saved + det_delta_x;
+					pxl.y += FIXEDPOINT_ONE;
+					y_off += 1;
+				}
+//----------------------------------------------------------------------
 			}
 		}
 	}
@@ -550,7 +519,7 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			{
 				if depth_buffer[y * bb.stride + x] == 1 continue x;
 				actual_shader_calls += 1;
-				out := color_shader(shader_buffer[y * bb.stride + x]);
+				out := lighted_shader(shader_buffer[y * bb.stride + x], active_lights);
 				color := AVector(4, float32).{data = out.color.vec.data};
 				rgb := convert(clamp(color * 255, .{0,0,0,0}, .{255,255,255,255}), s32);
 				rgb_copy := rgb;
@@ -567,7 +536,9 @@ render_Triangles_In_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 } @Disassemble
 
 
-depth_shader :: (in : Shader_Input) -> Shader_Output
+Pixel_Shader :: #type (Shader_Input, [] Light_Source) -> Shader_Output;
+
+depth_shader : Pixel_Shader: (in : Shader_Input, lights : [] Light_Source) -> Shader_Output
 {
 	using in;
 	start := Color.{r=1, g=1, b=1};
@@ -576,7 +547,7 @@ depth_shader :: (in : Shader_Input) -> Shader_Output
 	return out;
 }
 
-color_shader :: (in : Shader_Input) -> Shader_Output
+color_shader :Pixel_Shader: (in : Shader_Input, lights : [] Light_Source) -> Shader_Output
 {
 	using in;
 	out : Shader_Output;
@@ -584,6 +555,30 @@ color_shader :: (in : Shader_Input) -> Shader_Output
 	return out;
 }
 
+lighted_shader :Pixel_Shader: (in : Shader_Input, lights : [] Light_Source) -> Shader_Output
+{
+	using in;
+	out : Shader_Output;
+	out.color = in.material.color;
+
+	light_contribution : Color;
+	for light : lights
+	{
+		delta := light.position - position;
+		delta_unit := normalize(delta, .{});
+		dist := length_Squared(delta);
+		r2  := light.range * light.range;
+		if  dist < r2
+		{
+			frac := (1 - dist/r2) * clamp(dot(normal, delta_unit), 0, 1);
+			light_contribution.vec += .{frac,frac,frac,1};
+		}
+	}
+	
+	out.color *= light_contribution;
+
+	return out;
+}
 
 
 
@@ -598,5 +593,6 @@ Profiler :: #import "Tracy"(PROFILER);
 #import "Math";
 #import "Color";
 #import "Material";
+#import "Light";
 #import "AABB";
 #import "Sync";

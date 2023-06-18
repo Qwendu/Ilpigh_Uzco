@@ -104,7 +104,7 @@ operator / :: (a : $V/AVector, b : V.T) -> V #expand
 	r := a;
 	#if V.T == float32
 	{
-		b_v : V.{b,b,b,b};
+		b_v := V.{b,b,b,b};
 		#asm
 		{
 			divps r, b_v;
@@ -128,6 +128,12 @@ convert :: (a : AVector($N, $T), $to : Type) -> AVector(N, to)
 		#asm
 		{
 			cvttps2dq res, a;
+		}
+	}else #if T == s32 && to == float32
+	{
+		#asm
+		{
+			cvtdq2ps res, a;
 		}
 	}else{
 		#assert false;
