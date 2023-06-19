@@ -54,6 +54,7 @@ Platform :: struct
 	get_BackBuffer : (Window) -> BackBuffer #c_call;
 	get_Input      : (Window) -> Input #c_call;
 	sleep          : (int) #c_call;
+	allocate_Large : (int) -> (*void) #c_call;
 };
 
 Button_Code :: enum

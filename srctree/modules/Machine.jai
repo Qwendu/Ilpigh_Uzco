@@ -52,20 +52,7 @@ padding_Needed_To_Multiple :: (to_pad : int, multiple : int) -> int
 	return multiple - ifx (to_pad % multiple) else multiple;
 }
 
-Gibi :: (n: int) -> int #expand
-{
-	return Mebi(n) * 1024;
-}
 
-Mebi :: (n: int) -> int #expand
-{
-	return Kibi(n) * 1024;
-}
-
-Kibi :: (n: int) -> int #expand
-{
-	return n * 1024;
-}
 
 Giga :: (n: int) -> int #expand
 {
@@ -83,3 +70,4 @@ Kilo :: (n: int) -> int #expand
 }
 
 #import "Basic";
+#import "Memory";

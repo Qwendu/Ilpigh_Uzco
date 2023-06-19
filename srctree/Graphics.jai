@@ -32,12 +32,18 @@ draw :: (args :*Draw_Args) #c_call
 	draw_context.logger = draw_logger;
 	push_context,defer_pop draw_context;
 	output : Output;
-
+	
 	command_reader, command_writer := get_Ends(*command_buffer);
-
 	output.command_buffer_writer = command_writer;
 	atomic_volatile_write(*args.output, *output);
 
+	{
+		bytes_to_alloc := Mebi(256);
+		buffer_memory.data = plt.allocate_Large(bytes_to_alloc);
+		log("Large page returned %\n", buffer_memory.data);
+		if buffer_memory.data  buffer_memory.count = bytes_to_alloc;
+	}
+	
 	material_1 := Material.{};
 	material_1.color = .{0,1,0,0};
 
@@ -229,6 +235,8 @@ active_meshes : [..] Active_Instance;
 screen2 :: Vector(2, s32 /*fixed_point 26.6*/);
 
 
+
+buffer_memory : [] u8;
 depth_buffer : [] float;
 shader_buffer : [] Shader_Input;
 
@@ -268,15 +276,24 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	//
 	{
 		Profiler.TimeZone("Reset Buffers");
-		n_elements := bb.size.y * bb.stride;
-		if depth_buffer.count != n_elements
-		{
-			array_free(depth_buffer);
-			array_free(shader_buffer);
-			depth\_buffer = NewArray(n_elements, float);
-			shader_buffer = NewArray(n_elements, Shader_Input);
-		}
 
+
+		n_elements := bb.size.y * bb.stride;
+
+
+		depth\_buffer_size := n_elements * size_of(float32);
+		shader_buffer_size := n_elements * size_of(Shader_Input);
+		bytes_needed := depth_buffer_size + shader_buffer_size;
+		if buffer_memory.count < bytes_needed
+		{
+			error := tprint("We need % bytes for buffers, but only have allocated %", bytes_needed, buffer_memory.count);
+			log_error(error);
+			assert(!(buffer_memory.count < bytes_needed),error);
+		}
+		depth_buffer.data = xx buffer_memory.data;
+		depth_buffer.count = n_elements;
+		shader_buffer.data = xx *buffer_memory[depth_buffer_size];
+		shader_buffer.count = n_elements;
 
 		memset(bb.data, 0, size_of(Pixel) * n_elements);
 		for 0..n_elements-1
@@ -596,3 +613,4 @@ Profiler :: #import "Tracy"(PROFILER);
 #import "Light";
 #import "AABB";
 #import "Sync";
+#import "Memory";

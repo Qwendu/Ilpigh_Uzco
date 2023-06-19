@@ -1,5 +1,6 @@
 RUN\ GAME :: true;
-VTUNE :: true;
+
+WANT_VTUNE :: true;
 
 
 Disassembler :: #import,file "srctree/modules/Disassembler.jai"(ENABLE = false);
@@ -10,10 +11,13 @@ modules          :: "srctree/modules";
 build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 {
 	BACKEND_X64 :: false;
-	OPTIMIZATION : Jai.Optimization_Type:  .OPTIMIZED;
-	PROFILER_ENABLED := (OPTIMIZATION >= Jai.Optimization_Type.OPTIMIZED) && !VTUNE;
+	OPTIMIZATION : Jai.Optimization_Type:  .DEBUG;
+	PROFILER_ENABLED := (OPTIMIZATION >= Jai.Optimization_Type.OPTIMIZED);
+
+	VTUNE := PROFILER_ENABLED && WANT_VTUNE;
 	if VTUNE
 	{
+		PROFILER_ENABLED = false; // Disable Profiler to not interfere with VTune measurements
 		print("Building for VTune\n");
 	}
 	print("Opt = %\n", OPTIMIZATION);

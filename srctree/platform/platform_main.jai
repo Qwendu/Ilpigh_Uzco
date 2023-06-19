@@ -16,6 +16,7 @@ main :: ()
 		platform_context.get_BackBuffer = xx get_BackBuffer;
 		platform_context.get_Input = get_Input;
 		platform_context.window = xx create_Window("Ilpigh Uzco", .{800, 600});
+		platform_context.allocate_Large = allocate_Large_Page;
 		platform_context.sleep = sleep;
 	}
 

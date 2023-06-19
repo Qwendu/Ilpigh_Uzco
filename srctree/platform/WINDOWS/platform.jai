@@ -30,12 +30,44 @@ Window_Info :: struct
 	clear_input    : bool; @Atomic;
 };
 
+
+GLOBAL_LARGE_PAGE_SIZE_INITTED : bool = false;
+GLOBAL_LARGE_PAGE_SIZE := cast(u64) #run Kibi(4);
+
 active_windows : Bucket_Array(Window_Info, 20);
 active_threads : [..] Thread_Info;
 
 
 create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 {
+	if !GLOBAL_LARGE_PAGE_SIZE_INITTED
+	{
+		token : HANDLE;
+		if OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, *token)
+		{
+			priv : TOKEN_PRIVILEGES;
+			priv.PrivilegeCount = 1;
+			priv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+			if LookupPrivilegeValueW(null, utf8_to_wide(SE_LOCK_MEMORY_NAME), *priv.Privileges[0].Luid) // BAD WE ARE MIXING W and A
+			{
+				AdjustTokenPrivileges(token, BOOL.FALSE, *priv, size_of(type_of(priv)), null,null);
+				if GetLastError() == 0
+				{
+					GLOBAL_LARGE_PAGE_SIZE = GetLargePageMinimum();
+					log("LARGE PAGES ENABLED");
+				}else{
+					log_error("SeLockMemoryPrivilege denied");
+				}
+			}else{
+				log_error("LookupPrivilegeValueA failed");
+			}
+		}else{
+			log_error("OpenProcessToken failed");
+		}
+
+		log("Large Pages are % bytes", GLOBAL_LARGE_PAGE_SIZE);
+		GLOBAL_LARGE_PAGE_SIZE_INITTED = true;
+	}
 	//
 	// Window Creation
 	//
@@ -204,7 +236,7 @@ Thread_Info :: struct
 
 #import "Memory";
 
-THREAD_STACK_SIZE :: #run Megabytes(8);
+THREAD_STACK_SIZE :: #run Mebi(8);
 THREAD_CREATION_FLAGS : Creation_Flags;
 
 start_Thread :: (f : (*void) -> int #c_call, data : *void) -> Thread #c_call
@@ -287,16 +319,30 @@ get_Input :: (window : Window) -> Input #c_call
 	return res;
 }
 
-/*
-clear_Input :: (window : Window) #c_call
+
+allocate_Large_Page :: (size: int) -> (memory_start : *void) #c_call
 {
-	win := cast(*Window_Info)window;
-	atomic_volatile_write(*win.clear_input, true);
-	while atomic_volatile_read(*win.clear_input)
-	{
+	if size < 0 return null;
+	size_to_allocate := round_Up_To_Multiple(cast(u64) size, multiple_of = GLOBAL_LARGE_PAGE_SIZE);
+	if size_to_allocate < 0  return null; 	
+
+	addr := VirtualAlloc(
+		lpAddress = xx Tebi(2),
+		dwSize = cast(u64)size_to_allocate,
+		flAllocationType = MEM_COMMIT | MEM_RESERVE | MEM_LARGE_PAGES,
+		flProtect = PAGE_READWRITE,
+	);
+	if addr == null  
+	{	
+		initted := GLOBAL_LARGE_PAGE_SIZE_INITTED;
+		err := GetLastError();
+		curr := GetCurrentProcess();
 	}
+
+	return addr;
 }
-*/
+
+
 
 
 
@@ -543,6 +589,8 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 
 gdi      :: #system_library "Gdi32";
 user32   :: #system_library "User32";
+kernel   :: #system_library "Kernel32";
+advapi32 :: #system_library "Advapi32";
 
 
 PAINTSTRUCT :: struct {
@@ -581,6 +629,49 @@ EndPaint :: (
 	, lpPaint : *PAINTSTRUCT
 ) -> HDC #foreign user32; 
 
+
+LONG :: s32;
+
+LUID :: struct { LowPart : DWORD; HighPart : LONG;};
+LUID_AND_ATTRIBUTES :: struct
+{
+	Luid : LUID;
+	Attributes : DWORD;
+};
+
+TOKEN_PRIVILEGES :: struct
+{
+	PrivilegeCount : DWORD;
+	Privileges : [1] LUID_AND_ATTRIBUTES;
+}
+
+GetLargePageMinimum :: () -> u64 #foreign kernel;
+
+OpenProcessToken :: (
+	ProcessHandle : HANDLE,
+	DesiredAcces  : DWORD,
+	TokenHandle   : *HANDLE) -> BOOL #foreign advapi32;
+
+AdjustTokenPrivileges :: (
+	TokenHandle : HANDLE,
+	DisableAllPrivileges : BOOL,
+	NewState : *TOKEN_PRIVILEGES,
+	BufferLength : DWORD,
+	PreviousState : *TOKEN_PRIVILEGES,
+	ReturnLength : *DWORD) -> BOOL #foreign advapi32;
+
+
+LookupPrivilegeValueW :: (
+		lpSystemName : *u16,
+		lpName : *u16,
+		lpLuid : *LUID
+	) -> BOOL #foreign advapi32;
+
+SE_LOCK_MEMORY_NAME :: "SeLockMemoryPrivilege";
+SE_PRIVILEGE_ENABLED :: 0x2;
+TOKEN_ADJUST_PRIVILEGES : u32 : 0x0020;
+TOKEN_QUERY             : u32 : 0x0008;
+
 InvalidateRect :: (
 	  hWnd : HWND
 	, lpRect : *RECT
@@ -610,3 +701,5 @@ WM_ACTIVATE :: 0x0006;
 #import "Async_Buffer";
 #import "Bucket_Array";
 #import "Mutex";
+#import "Memory";
+#import "IUMath";
