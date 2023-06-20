@@ -47,82 +47,95 @@ draw :: (args :*Draw_Args) #c_call
 	material_1 := Material.{};
 	material_1.color = .{0,1,0,0};
 
-	m1 := array_add(*loaded_meshes);
-	m1.material = .{.{1,1,0, 0}};
-	m1.vertices = .[
-		.{-1,0,-1},
-		.{1,0,-1},
-		.{0,1,-8},
-		//.{0,0,0}
-	];
-	m1.triangles = .[
-		.{0,1,2},
-		//.{0,3,1}
-	];
-	m1.aabb = generate_AABB_Of_Mesh(m1);
+	m1_id, m2_id, floor_tile_id, height_map_id: int;
 
-	m2 := array_add(*loaded_meshes);
-	m2.material = .{.{0,1,0, 0}};;
-	m2.vertices = .[
-		.{-1, 0,0},
-		.{ 1, 0,-4},
-		.{-1, 0,-10},
-		.{ 1, 0,-10},
-	];
-	m2.triangles = .[
-		.{0,1,2},
-		.{1,3,2}
-	];
-	m2.aabb = generate_AABB_Of_Mesh(m2);
-
-	floor_tile := array_add(*loaded_meshes);
-	floor_tile.material = .{.{0.2,.2,.2,1}};
-	floor_tile.vertices = .[
-		.{0,1,1},
-		.{1,1,1},
-		.{0,0,1},
-		.{1,0,1},
-	];
-	floor_tile.triangles = .[
-		.{0,3,1},
-		.{0,2,3}
-	];
-
-	height_map_res :: int2.{30, 30};
-	height_map_dims :: float3.{10, .7, 10};
-	height_map := array_add(*loaded_meshes);
-	height_map.material.color = .{1,1,1,1};
-	height_map.vertices = NewArray(height_map_res.x * height_map_res.y, float3);
-	height_map.aabb = generate_AABB_Of_Mesh(height_map);
-	for h: 0..height_map_res.y-1
 	{
-		for w: 0..height_map_res.x-1
-		{
-			w_sample := cast(float)w/(height_map_res.x - 1);
-			h_sample := cast(float)h/(height_map_res.y - 1);
-			v := *height_map.vertices[h * height_map_res.x + w];
-			v.x = w_sample * height_map_dims.x - height_map_dims.x/2;
-			v.z = h_sample * height_map_dims.z - height_map_dims.z/2;
-			v.y = cast(float)(sin(w_sample * 2 * PI)) * height_map_dims.y;
-		}
+		m1 : Mesh;
+		m1.material = .{.{1,1,0, 0}};
+		m1.vertices = .[
+			.{-1,0,-1},
+			.{1,0,-1},
+			.{0,1,-8},
+			//.{0,0,0}
+		];
+		m1.triangles = .[
+			.{0,1,2},
+			//.{0,3,1}
+		];
+		m1.aabb = generate_AABB_Of_Mesh(m1);
+		m1_id := register_Mesh(m1);
 	}
-	height_map.triangles = NewArray((height_map_res.x - 1) * 2 * (height_map_res.y - 1), int3);
-	idx := 0;
-	for h: 0..height_map_res.y-2
 	{
-		for w: 0..height_map_res.x-2
-		{
-			v1 := h * height_map_res.x + w;
-			v2 := h * height_map_res.x + (w + 1);
-			v3 := (h + 1) * height_map_res.x + w;
-			v4 := (h + 1) * height_map_res.x + (w + 1);
-			height_map.triangles[idx + 0] = .{v1,v3, v2}; 
-			height_map.triangles[idx + 1] = .{v2,v3, v4}; 
-			idx += 2;
-		}
+		m2 : Mesh;
+		m2.material = .{.{0,1,0, 0}};;
+		m2.vertices = .[
+			.{-1, 0,0},
+			.{ 1, 0,-4},
+			.{-1, 0,-10},
+			.{ 1, 0,-10},
+		];
+		m2.triangles = .[
+			.{0,1,2},
+			.{1,3,2}
+		];
+		m2.aabb = generate_AABB_Of_Mesh(m2);
+		m2_id = register_Mesh(m2);
 	}
-	log("% vertices, % triangles in heightmap", height_map.vertices.count, height_map.triangles.count);
+	{
+		floor_tile : Mesh;
+		floor_tile.material = .{.{0.2,.2,.2,1}};
+		floor_tile.vertices = .[
+			.{0,1,1},
+			.{1,1,1},
+			.{0,0,1},
+			.{1,0,1},
+		];
+		floor_tile.triangles = .[
+			.{0,3,1},
+			.{0,2,3}
+		];
+		floor_tile.aabb = generate_AABB_Of_Mesh(floor_tile);
+		floor_tile_id = register_Mesh(floor_tile);
+	}
 
+	{
+		height_map_res :: int2.{30, 30};
+		height_map_dims :: float3.{10, .7, 10};
+		height_map : Mesh;
+		height_map.material.color = .{1,1,1,1};
+		height_map.vertices = NewArray(height_map_res.x * height_map_res.y, float3);
+
+		for h: 0..height_map_res.y-1
+		{
+			for w: 0..height_map_res.x-1
+			{
+				w_sample := cast(float)w/(height_map_res.x - 1);
+				h_sample := cast(float)h/(height_map_res.y - 1);
+				v := *height_map.vertices[h * height_map_res.x + w];
+				v.x = w_sample * height_map_dims.x - height_map_dims.x/2;
+				v.z = h_sample * height_map_dims.z - height_map_dims.z/2;
+				v.y = cast(float)(sin(w_sample * 2 * PI)) * height_map_dims.y;
+			}
+		}
+		height_map.triangles = NewArray((height_map_res.x - 1) * 2 * (height_map_res.y - 1), int3);
+		idx := 0;
+		for h: 0..height_map_res.y-2
+		{
+			for w: 0..height_map_res.x-2
+			{
+				v1 := h * height_map_res.x + w;
+				v2 := h * height_map_res.x + (w + 1);
+				v3 := (h + 1) * height_map_res.x + w;
+				v4 := (h + 1) * height_map_res.x + (w + 1);
+				height_map.triangles[idx + 0] = .{v1,v3, v2}; 
+				height_map.triangles[idx + 1] = .{v2,v3, v4}; 
+				idx += 2;
+			}
+		}
+		log("% vertices, % triangles in heightmap", height_map.vertices.count, height_map.triangles.count);
+		height_map.aabb = generate_AABB_Of_Mesh(height_map);
+		height_map_id = register_Mesh(height_map);
+	}
 
 	while atomic_volatile_read(args.exit) == 0
 	{
@@ -130,9 +143,8 @@ draw :: (args :*Draw_Args) #c_call
 		Profiler.Frame("Graphics");
 		buffer : *Draw_Buffer = get_Read_Pointer(command_reader);
 		render_Draw_Buffer(plt, buffer);
-
-		
 		plt.update_Window(plt.window);
+		plt.sleep(30);
 	}
 
 	atomic_volatile_write(args.exit, 0);
@@ -165,6 +177,26 @@ add_Mesh :: (buffer : *Draw_Buffer, instance : Model_Instance)
 	}
 }
 
+add_Line :: (buffer : *Draw_Buffer, start : float3, end : float3, color : Color)
+{
+	using buffer;
+	if n_lines < lines.count
+	{
+		lines[n_lines] = .{start = start, end = end, color = color};
+		n_lines += 1;
+	}else{
+		log_error("Too many lines got queued!");
+	}
+}
+
+
+register_Mesh :: (mesh : Mesh) -> int
+{
+	id := loaded_meshes.count;
+	mesh_ptr := array_add(*loaded_meshes);
+	mesh_ptr.* = mesh;
+	return id;
+}
 
 clear_Instances :: (draw_buffer : *Draw_Buffer)
 {
@@ -204,10 +236,17 @@ Shader_Output :: struct
 };
 
 
+Line :: struct
+{
+	start : float3;
+	end   : float3;
+	color : Color;
+}
+
 Draw_Buffer :: struct
 {
 	submission_time : Apollo_Time;
-
+	mouse_position_relative_to_top_left : int2;
 	
 	n_instances : int;
 	instances  : [600] Model_Instance;
@@ -215,6 +254,8 @@ Draw_Buffer :: struct
 	n_light_sources : int;
 	light_sources : [20] Light_Source;
 
+	n_lines : int;
+	lines   : [200] Line;
 
 	camera : Camera;
 };
@@ -222,6 +263,8 @@ Draw_Buffer :: struct
 
 
 loaded_meshes : [..] Mesh;
+
+
 
 Active_Instance :: struct
 {
@@ -267,8 +310,17 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	active_lights :[] Light_Source = draw_buffer.light_sources;
 	active_lights.count = draw_buffer.n_light_sources;
 
+	log("Mouse position = %", draw_buffer.mouse_position_relative_to_top_left);
+
+	mouse_pos_ndc := float2.{xx draw_buffer.mouse_position_relative_to_top_left.x, xx draw_buffer.mouse_position_relative_to_top_left.y};
+
+
 
 	bb := plt.get_BackBuffer(plt.window);
+	mouse_pos_ndc = .{mouse_pos_ndc.x/bb.size.x, mouse_pos_ndc.y/bb.size.y};
+	mouse_pos_ndc.y = 1 - mouse_pos_ndc.y;
+	mouse_pos_ndc *= 2;
+	mouse_pos_ndc -= .{1,1};
 	aspect : float = bb.size.x/cast(float)bb.size.y;
 
 	//
@@ -307,6 +359,7 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	world_to_camera := world_To_Camera(camera);
 	projection := projection_Matrix(fov = camera.fov, aspect = aspect, near = camera.near, far = camera.far);
 
+	world_to_projection := projection * world_to_camera;
 
 	active_meshes.count = 0;
 	array_reserve(*active_meshes, 100);
@@ -524,10 +577,137 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		}
 	}
 
+
+	//
+	// Lines
+	//
+	{
+		clip_Line :: (start : float2, end : float2, min : float2, max : float2) -> (start : float2, end : float2, succ : bool)
+		{
+			LEFT   :: 1;
+			RIGHT  :: 2;
+			TOP    :: 4;
+			BOTTOM :: 8;
+			//https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
+			outcode :: (a : float2, min : float2, max : float2) -> u8
+			{
+				res : u8;
+				if a.x < min.x  res |= LEFT;
+				if a.x > max.x  res |= RIGHT;
+				if a.y > max.x  res |= TOP;
+				if a.y < min.x  res |= BOTTOM;
+				return res;
+			}
+		
+			start_copy := start;
+			end\ _copy := end;
+			succ : bool = false;
+			out_start_copy := outcode(start_copy, min, max);
+			out_end_copy   := outcode(end_copy, min, max);
+			pick_next := 0;
+			while true
+			{
+				if out_start_copy == 0 && out_end_copy == 0
+				{
+					succ = true;
+					break;
+				}else if (out_start_copy & out_end_copy) != 0
+				{
+					succ = false;
+					break;
+				}else if out_start_copy != 0{
+					if out_start_copy & TOP
+					{
+						start_copy.x += (end_copy.x - start_copy.x) * (max.y - start_copy.y)/(end_copy.y - start_copy.y);
+						start_copy.y = max.y;
+					}else if out_start_copy & BOTTOM
+					{
+						start_copy.x += (end_copy.x - start_copy.x) * (min.y - start_copy.y)/(end_copy.y - start_copy.y);
+						start_copy.y = min.y;
+					}else if out_start_copy & RIGHT
+					{
+						start_copy.y += (end_copy.y - start_copy.y) * (max.x - start_copy.x)/(end_copy.x - start_copy.x);
+						start_copy.x = max.x;
+					}else if out_start_copy & LEFT
+					{
+						start_copy.y += (end_copy.y - start_copy.y) * (min.x - start_copy.x)/(end_copy.x - start_copy.x);
+						start_copy.x = min.x;
+					}
+				}else if out_end_copy != 0{
+					if out_end_copy & TOP
+					{
+						end_copy.x += (end_copy.x - start_copy.x) * (max.y - end_copy.y)/(end_copy.y - start_copy.y);
+						end_copy.y = max.y;
+					}else if out_end_copy & BOTTOM
+					{
+						end_copy.x += (end_copy.x - start_copy.x) * (min.y - end_copy.y)/(end_copy.y - start_copy.y);
+						end_copy.y = min.y;
+					}else if out_end_copy & RIGHT
+					{
+						end_copy.y += (end_copy.y - start_copy.y) * (max.x - end_copy.x)/(end_copy.x - start_copy.x);
+						end_copy.x = max.x;
+					}else if out_end_copy & LEFT
+					{
+						end_copy.y += (end_copy.y - start_copy.y) * (min.x - end_copy.x)/(end_copy.x - start_copy.x);
+						end_copy.x = min.x;
+					}
+				}
+				out_start_copy = outcode(start_copy, min, max);
+				out_end\ _copy = outcode(end\ _copy, min, max);
+			}
+			return start_copy, end_copy, succ;
+		}
+		render_Line_2D :: (start : float2, end : float2, color : Color) #expand
+		{
+			start_clipped, end_clipped, s := clip_Line(start, end, .{-1,-1}, .{1,1});
+			if !s return;
+			start_screen := (start_clipped + .{1,1})/2;
+			start_screen.x *= bb.size.x;
+			start_screen.y *= bb.size.y;
+			end_screen   := (end_clipped + .{1,1})/2;
+			end_screen.x *= bb.size.x;
+			end_screen.y *= bb.size.y;
+			delta := end_screen - start_screen;
+			len := max(abs(delta.x), abs(delta.y));
+			delta /= len;
+
+			runner := start_screen;
+			traversed := 0.0;
+			while traversed < len
+			{
+				x := cast(int)runner.x;
+				y := cast(int)runner.y;
+				if   0 <= x && x < bb.size.x
+				  && 0 <= y && y < bb.size.y
+				{
+					depth_buffer[y * bb.stride + x] = 1;
+					bb.data[y * bb.stride + x ] = .{
+						r = xx clamp(color.r * 255, 0, 255),
+						g = xx clamp(color.g * 255, 0, 255),
+						b = xx clamp(color.b * 255, 0, 255)
+					};
+				}
+
+				runner += delta;
+				traversed += 1;
+			}
+		}
+		log("Rendering % lines", draw_buffer.n_lines);
+		for it_index: 0..draw_buffer.n_lines-1
+		{
+			it := draw_buffer.lines[it_index];
+			start := project_Point(world_to_projection, it.start);
+			end   := project_Point(world_to_projection, it.end);
+			render_Line_2D(start.xy, end.xy, it.color);
+		}
+	}
+	
+
 	//
 	// Pixel Shader
 	//
 	{
+
 		Profiler.TimeZone("Pixel Shader");
 		actual_shader_calls : int = 0;
 		for y:0..bb.size.y-1
@@ -588,7 +768,7 @@ lighted_shader :Pixel_Shader: (in : Shader_Input, lights : [] Light_Source) -> S
 		if  dist < r2
 		{
 			frac := (1 - dist/r2) * clamp(dot(normal, delta_unit), 0, 1);
-			light_contribution.vec += .{frac,frac,frac,1};
+			light_contribution.vec += float4.{frac,frac,frac,1};
 		}
 	}
 	
@@ -614,3 +794,4 @@ Profiler :: #import "Tracy"(PROFILER);
 #import "AABB";
 #import "Sync";
 #import "Memory";
+#import "Mutex";

@@ -4,5 +4,7 @@
 
 IGNORE_INPUT :: false;
 
+#if IGNORE_INPUT #run print("Building with ignoring input");
+
 
 #import "Basic";

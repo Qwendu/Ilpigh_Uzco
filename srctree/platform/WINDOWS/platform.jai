@@ -30,9 +30,10 @@ Window_Info :: struct
 	clear_input    : bool; @Atomic;
 };
 
-
+GLOBAL_LARGE_PAGE_ENABLE := false;
 GLOBAL_LARGE_PAGE_SIZE_INITTED : bool = false;
 GLOBAL_LARGE_PAGE_SIZE := cast(u64) #run Kibi(4);
+GLOBAL_LARGE_PAGE_AVAILABLE : bool = false;
 
 active_windows : Bucket_Array(Window_Info, 20);
 active_threads : [..] Thread_Info;
@@ -40,7 +41,7 @@ active_threads : [..] Thread_Info;
 
 create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 {
-	if !GLOBAL_LARGE_PAGE_SIZE_INITTED
+	if !GLOBAL_LARGE_PAGE_SIZE_INITTED && GLOBAL_LARGE_PAGE_ENABLE
 	{
 		token : HANDLE;
 		if OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, *token)
@@ -54,6 +55,7 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 				if GetLastError() == 0
 				{
 					GLOBAL_LARGE_PAGE_SIZE = GetLargePageMinimum();
+					GLOBAL_LARGE_PAGE_AVAILABLE = true;
 					log("LARGE PAGES ENABLED");
 				}else{
 					log_error("SeLockMemoryPrivilege denied");
@@ -65,8 +67,13 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 			log_error("OpenProcessToken failed");
 		}
 
-		log("Large Pages are % bytes", GLOBAL_LARGE_PAGE_SIZE);
+		if GLOBAL_LARGE_PAGE_AVAILABLE
+			log("Large Pages are % bytes", GLOBAL_LARGE_PAGE_SIZE);
+		else
+			log("No Large Pages available");
 		GLOBAL_LARGE_PAGE_SIZE_INITTED = true;
+	}else{
+		log("Large Pages disabled");
 	}
 	//
 	// Window Creation
@@ -329,7 +336,7 @@ allocate_Large_Page :: (size: int) -> (memory_start : *void) #c_call
 	addr := VirtualAlloc(
 		lpAddress = xx Tebi(2),
 		dwSize = cast(u64)size_to_allocate,
-		flAllocationType = MEM_COMMIT | MEM_RESERVE | MEM_LARGE_PAGES,
+		flAllocationType = MEM_COMMIT | MEM_RESERVE | ifx GLOBAL_LARGE_PAGE_AVAILABLE then MEM_LARGE_PAGES else cast(u32)0,
 		flProtect = PAGE_READWRITE,
 	);
 	if addr == null  
@@ -462,6 +469,11 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 			// @BetterMouse
 			// Maybe add here that we track where the mouse is?
 			// And maybe support modes where the mouse stays in the center of the screen
+			in := acquire(*window_info.input);
+			in.mouse.position_relative_to_top_left.x =  clamp((lparam >>  0) & 0xFFFF, 0, window_info.bitmap.size.x);
+			in.mouse.position_relative_to_top_left.y =  clamp((lparam >> 16) & 0xFFFF, 0, window_info.bitmap.size.y);
+			release(*window_info.input);
+
 			
 
 			

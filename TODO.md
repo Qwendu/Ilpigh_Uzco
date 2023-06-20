@@ -7,10 +7,14 @@
 # Systems
 - [ ] Hot Swapping
 - [ ] Rendering
-	- [ ] Triangle Rasterization
-	- [ ] Jai Shaders
+	- [x] Triangle Rasterization
+	- [x] Jai Shaders
 	- [ ] Font Rendering
 - [ ] Add custom context for the platform layer
 - [ ] Memory Allocators for Graphics Subsystem
-	- [ ] Large Page support
+	- [x] Large Page support
 	- [ ] Arena Allocators
+- [ ] Load Meshes
+- [ ] Physics
+	- [x] Line Drawing for Debugging
+	- [ ] Primitives

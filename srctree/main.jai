@@ -39,7 +39,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	
 	draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
 
-	position := float3.{y = 0, z = 1};
+	position := float3.{y = 2, z = 5};
 	camera_pitch_yaw : float2 = .{y = -.2};
 	
 	log("Entering Main Loop");
@@ -57,6 +57,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		
 	
 		draw_buffer.submission_time = current_time_monotonic();
+		draw_buffer.mouse_position_relative_to_top_left = input.mouse.position_relative_to_top_left;
 		
 		//
 		// Movement
@@ -113,7 +114,8 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		{
 			for x: 0..EXTENT
 			{
-				model_to_world_matrix := add_Offset(mat, float3.{xx (x - 1),xx (y - 1), 0});
+				offset := float3.{xx (x - 1),xx (y - 1), -1};
+				model_to_world_matrix := add_Offset(mat, offset);
 				floor_tile.model_to_world = model_to_world_matrix;
 				add_Mesh(draw_buffer, floor_tile);
 			}
@@ -129,7 +131,8 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		//add_Mesh(draw_buffer, instance_1);
 
 
-		add_Light_Source(draw_buffer, .{position = .{0, 1, 2}, range = 10, color = .{1,1,1,1}});
+		add_Light_Source(draw_buffer, .{position = .{0, 1, 2}, range = 5, color = .{1,1,1,1}});
+		add_Light_Source(draw_buffer, .{position = .{3, 1, 2}, range = 5, color = .{1,1,1,1}});
 
 
 		draw_buffer.camera.position = position;
