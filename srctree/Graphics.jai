@@ -225,6 +225,7 @@ clear_Instances :: (draw_buffer : *Draw_Buffer)
 {
 	draw_buffer.n_instances = 0;
 	draw_buffer.n_light_sources = 0;
+	draw_buffer.n_lines = 0;
 }
 
 Model_Instance :: struct
@@ -409,7 +410,7 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			mesh     := *loaded_meshes[instance.id];
 			corners_mesh  :=  aabb_To_Corners(mesh.aabb);
 			instance_to_world      := instance.model_to_world;
-			instance_to_projection := projection * world_to_camera * instance.model_to_world;
+			instance_to_projection := world_to_projection * instance.model_to_world;
 			n_outside := 0;
 
 			for corners_mesh
@@ -443,8 +444,8 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	// Rasterization
 	//
 	{
-		factor_x := cast(type_of(screen2.x))FIXEDPOINT_ONE * bb.size.x;
-		factor_y := cast(type_of(screen2.x))FIXEDPOINT_ONE * bb.size.y;
+		factor_x := cast(type_of(screen2.x))FIXEDPOINT_ONE * bb.size.x/2;
+		factor_y := cast(type_of(screen2.x))FIXEDPOINT_ONE * bb.size.y/2;
 		Profiler.TimeZone("Rasterization");
 		for active_meshes
 		{
@@ -475,8 +476,6 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 				}
 
 			
-
-				half :: screen2.{FIXEDPOINT_ONE/2, FIXEDPOINT_ONE/2};
 				a_s := screen2.{cast(type_of(screen2.x)) (a.x * factor_x), cast(type_of(screen2.x)) (a.y * factor_y)};
 				b_s := screen2.{cast(type_of(screen2.x)) (b.x * factor_x), cast(type_of(screen2.x)) (b.y * factor_y)};
 				c_s := screen2.{cast(type_of(screen2.x)) (c.x * factor_x), cast(type_of(screen2.x)) (c.y * factor_y)};
@@ -611,7 +610,7 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			TOP    :: 4;
 			BOTTOM :: 8;
 			//https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
-			outcode :: (a : float2, min : float2, max : float2) -> u8
+			outcode_2 :: (a : float2, min : float2, max : float2) -> u8
 			{
 				res : u8;
 				if a.x < min.x  res |= LEFT;
@@ -624,8 +623,8 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			start_copy := start;
 			end\ _copy := end;
 			succ : bool = false;
-			out_start_copy := outcode(start_copy, min, max);
-			out_end_copy   := outcode(end_copy, min, max);
+			out_start_copy := outcode_2(start_copy, min, max);
+			out_end_copy   := outcode_2(end_copy, min, max);
 			pick_next := 0;
 			while true
 			{
@@ -674,8 +673,8 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 						end_copy.x = min.x;
 					}
 				}
-				out_start_copy = outcode(start_copy, min, max);
-				out_end\ _copy = outcode(end\ _copy, min, max);
+				out_start_copy = outcode_2(start_copy, min, max);
+				out_end\ _copy = outcode_2(end\ _copy, min, max);
 			}
 			return start_copy, end_copy, succ;
 		}
@@ -719,6 +718,8 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			it := draw_buffer.lines[it_index];
 			start := project_Point(world_to_projection, it.start);
 			end   := project_Point(world_to_projection, it.end);
+			if outcode(start.xyz) != 0 || outcode(end.xyz) != 0  continue;
+			
 			render_Line_2D(start.xy, end.xy, it.color);
 		}
 	}
@@ -737,7 +738,7 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			{
 				if depth_buffer[y * bb.stride + x] == 1 continue x;
 				actual_shader_calls += 1;
-				out := lighted_shader(shader_buffer[y * bb.stride + x], active_lights);
+				out := color_shader(shader_buffer[y * bb.stride + x], active_lights);
 				color := AVector(4, float32).{data = out.color.vec.data};
 				rgb := convert(clamp(color * 255, .{0,0,0,0}, .{255,255,255,255}), s32);
 				rgb_copy := rgb;
