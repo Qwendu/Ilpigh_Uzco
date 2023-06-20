@@ -137,6 +137,29 @@ draw :: (args :*Draw_Args) #c_call
 		height_map_id = register_Mesh(height_map);
 	}
 
+	tet_id : int;
+	{
+		angle :: 120.0/180 * PI;
+		cosa :: #run cos(angle);
+		sina :: #run sin(angle);
+		tet : Mesh;
+		tet.vertices = .[
+			.{0, .5,0},
+			.{1,-.5,0},
+			.{ cosa,-.5,-sina},
+			.{ cosa,-.5, sina},
+		];
+		tet.triangles = .[
+			.{2,1,3},
+			.{0,1,2},
+			.{1,0,3},
+			.{0,2,3},
+		];
+		tet.aabb = generate_AABB_Of_Mesh(tet);
+		tet.material.color = .{1,0.3,0.5, 0};
+		tet_id  = register_Mesh(tet);
+	}
+
 	while atomic_volatile_read(args.exit) == 0
 	{
 		Profiler.TimeZone();
@@ -310,7 +333,6 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	active_lights :[] Light_Source = draw_buffer.light_sources;
 	active_lights.count = draw_buffer.n_light_sources;
 
-	log("Mouse position = %", draw_buffer.mouse_position_relative_to_top_left);
 
 	mouse_pos_ndc := float2.{xx draw_buffer.mouse_position_relative_to_top_left.x, xx draw_buffer.mouse_position_relative_to_top_left.y};
 
@@ -692,7 +714,6 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 				traversed += 1;
 			}
 		}
-		log("Rendering % lines", draw_buffer.n_lines);
 		for it_index: 0..draw_buffer.n_lines-1
 		{
 			it := draw_buffer.lines[it_index];

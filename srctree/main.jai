@@ -58,86 +58,109 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	
 		draw_buffer.submission_time = current_time_monotonic();
 		draw_buffer.mouse_position_relative_to_top_left = input.mouse.position_relative_to_top_left;
-		
-		//
-		// Movement
-		//
-		velocity :float3;
-		{
-			if(is_Button_Pressed(*input, .W)) velocity += .{ 0, 0,-1};
-			if(is_Button_Pressed(*input, .A)) velocity += .{-1, 0, 0};
-			if(is_Button_Pressed(*input, .S)) velocity += .{ 0, 0, 1};
-			if(is_Button_Pressed(*input, .D)) velocity += .{ 1, 0, 0};
-			if(is_Button_Pressed(*input, .Q)) velocity += .{ 0, 1, 0};
-			if(is_Button_Pressed(*input, .E)) velocity += .{ 0,-1, 0};
 
-		}
-		//
-		// Rotation
-		//
 		{
-			rot : float2;
-			#if false
+			//
+			// Movement
+			//
+			velocity :float3;
 			{
-				if(is_Button_Pressed(*input, .I))  rot += .{ 0, 1};
-				if(is_Button_Pressed(*input, .J))  rot += .{-1, 0};
-				if(is_Button_Pressed(*input, .K))  rot += .{ 0,-1};
-				if(is_Button_Pressed(*input, .L))  rot += .{ 1, 0};
-			}else{
+				if(is_Button_Pressed(*input, .W)) velocity += .{ 0, 0,-1};
+				if(is_Button_Pressed(*input, .A)) velocity += .{-1, 0, 0};
+				if(is_Button_Pressed(*input, .S)) velocity += .{ 0, 0, 1};
+				if(is_Button_Pressed(*input, .D)) velocity += .{ 1, 0, 0};
+				if(is_Button_Pressed(*input, .Q)) velocity += .{ 0, 1, 0};
+				if(is_Button_Pressed(*input, .E)) velocity += .{ 0,-1, 0};
+
+			}
+			//
+			// Rotation
+			//
+			{
+				rot : float2;
+				#if false
+				{
+					if(is_Button_Pressed(*input, .I))  rot += .{ 0, 1};
+					if(is_Button_Pressed(*input, .J))  rot += .{-1, 0};
+					if(is_Button_Pressed(*input, .K))  rot += .{ 0,-1};
+					if(is_Button_Pressed(*input, .L))  rot += .{ 1, 0};
+				}else{
+				
+					rot = mouse_delta * 1.0;
+					rot.y *= -1;
+				}
+				camera_pitch_yaw += rot * DELTA;
+				camera_pitch_yaw.y = clamp(camera_pitch_yaw.y, -PI/2, PI/2);
+			}
+			pitch := rotation_Around_Axis(.{-1,0,0}, camera_pitch_yaw.y);
+			yaw   := rotation_Around_Axis(.{0,1,0},  camera_pitch_yaw.x);
+			rotation := pitch * yaw;
+			camera_orientation := rotation_Matrix(inverse(rotation));
 			
-				rot = mouse_delta * 1.0;
-				rot.y *= -1;
-			}
-			camera_pitch_yaw += rot * DELTA;
-			camera_pitch_yaw.y = clamp(camera_pitch_yaw.y, -PI/2, PI/2);
+			position += affine_Transform(camera_orientation,velocity).xyz * DELTA;
+			draw_buffer.camera.position = position;
+			draw_buffer.camera.rotation = rotation;
+			draw_buffer.camera.far = 12;
+			log("(% % %)  (% %)", position.x, position.y, position.z, camera_pitch_yaw.y, camera_pitch_yaw.x);
 		}
-		pitch := rotation_Around_Axis(.{-1,0,0}, camera_pitch_yaw.y);
-		yaw   := rotation_Around_Axis(.{0,1,0},  camera_pitch_yaw.x);
-		rotation := pitch * yaw;
-		camera_orientation := rotation_Matrix(inverse(rotation));
-		
-		position += affine_Transform(camera_orientation,velocity).xyz * DELTA;
 	
-
-
-
-		
-
-
-
-		mat := identity(4, float);
-		add_Mesh(draw_buffer, .{id = 3, model_to_world = mat});
-
-		floor_tile := Model_Instance.{id = 2, model_to_world = identity(4, float)};
-		EXTENT :: 1;
-		for y: 0..EXTENT
+		//
+		// Scene
+		//
 		{
-			for x: 0..EXTENT
+			mat := identity(4, float);
+			//add_Mesh(draw_buffer, .{id = 3, model_to_world = mat});
+
+			floor_tile := Model_Instance.{id = 2, model_to_world = identity(4, float)};
+			EXTENT :: 1;
+			for y: 0..EXTENT
 			{
-				offset := float3.{xx (x - 1),xx (y - 1), -1};
-				model_to_world_matrix := add_Offset(mat, offset);
-				floor_tile.model_to_world = model_to_world_matrix;
-				add_Mesh(draw_buffer, floor_tile);
+				for x: 0..EXTENT
+				{
+					offset := float3.{xx (x - 1),xx (y - 1), -1};
+					model_to_world_matrix := add_Offset(mat, offset);
+					floor_tile.model_to_world = model_to_world_matrix;
+					//add_Mesh(draw_buffer, floor_tile);
+				}
 			}
+
+			instance_1 := Model_Instance.{id = 0, model_to_world = mat};
+			instance_2 := Model_Instance.{id = 1, model_to_world = identity(4, float)};
+			//add_Mesh(draw_buffer, instance_1);
+			//add_Mesh(draw_buffer, instance_2);
+			//add_Offset(*instance_1.model_to_world, .{y = -0.1 ,z = -2});
+			//add_Mesh(draw_buffer, instance_1);
+
+			add_Light_Source(draw_buffer, .{position = .{0, 2, 0}, range = 5, color = .{1,1,1,1}});
+			add_Light_Source(draw_buffer, .{position = .{0, -2, 0}, range = 5, color = .{1,1,1,1}});
+		}
+		
+		//
+		// Physics
+		//
+		{
+			PVA :: struct(T : Type)
+			{
+				position     : T;
+				velocity     : T;
+				acceleration : T;
+			}
+			PO :: struct
+			{
+				translation : PVA(float3);
+				rotation    : PVA(Quaternion);
+			}
+			p1 : float3;
+			add_Mesh(draw_buffer, .{4, identity(4, float)});
+			
 		}
 
-		instance_1 := Model_Instance.{id = 0, model_to_world = mat};
-		instance_2 := Model_Instance.{id = 1, model_to_world = identity(4, float)};
 
 
-		//add_Mesh(draw_buffer, instance_1);
-		//add_Mesh(draw_buffer, instance_2);
-		//add_Offset(*instance_1.model_to_world, .{y = -0.1 ,z = -2});
-		//add_Mesh(draw_buffer, instance_1);
 
 
-		add_Light_Source(draw_buffer, .{position = .{0, 1, 2}, range = 5, color = .{1,1,1,1}});
-		add_Light_Source(draw_buffer, .{position = .{3, 1, 2}, range = 5, color = .{1,1,1,1}});
 
 
-		draw_buffer.camera.position = position;
-		draw_buffer.camera.rotation = rotation;
-		draw_buffer.camera.far = 12;
 		
 
 		draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);
