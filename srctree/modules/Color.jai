@@ -12,6 +12,11 @@ Color :: struct
 };
 
 
+RED   :: Color.{1,0,0,0};
+GREEN :: Color.{0,1,0,0};
+BLUE  :: Color.{0,0,1,0};
+
+
 operator * :: (l : Color, r : Color) -> Color
 {
 	res := l;

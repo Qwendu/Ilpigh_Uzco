@@ -25,6 +25,8 @@ Vector :: struct(dim : int, T : Type)
 		xyz : Vector(3, T) = ---;
 	#place y;
 		yzw : Vector(3, T) = ---;
+	#place z;
+		zw  : Vector(2, T) = ---;
 	}
 }
 
