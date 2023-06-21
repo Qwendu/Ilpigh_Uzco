@@ -36,6 +36,8 @@ round_Up_To_Multiple :: (number_to_round : u64, multiple_of : u64) -> u64 #no_co
 float_compare :: (a : float, b : float, $comparison : enum {EQ;NEQ;LE;L;GE;G;}) -> bool
 {
 	res     : u8;
+	// @Cleanup: We might not need these temporaries here!
+	//   Remove them
 	np      : u8;
 	less    : u8;
 	greater : u8;
