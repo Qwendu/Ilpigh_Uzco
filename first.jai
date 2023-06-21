@@ -10,7 +10,7 @@ modules          :: "srctree/modules";
 
 build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 {
-	BACKEND_X64 :: false;
+	BACKEND_X64 :: true;
 	OPTIMIZATION : Jai.Optimization_Type:  .DEBUG;
 	PROFILER_ENABLED := (OPTIMIZATION >= Jai.Optimization_Type.OPTIMIZED);
 

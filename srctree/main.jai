@@ -14,31 +14,12 @@ PO :: struct
 {
 	translation : PVA(float3);
 	rotation    : PVA(Quaternion);
+	mass : float = 1;
 	bounding_sphere_radius : float = 1;
+	local_time : float; // Used for resolving physics
 }
 
-Casted_Sphere :: struct
-{
-	start  : float3;
-	end    : float3;
-	radius : float;
-};
-
-objects : [2] PO;
-
-n_casted_bounding_spheres : int = 0;
-casted_bounding_spheres : [objects.count] Casted_Sphere;
-
-add_Casted_Sphere :: (sphere : Casted_Sphere)
-{
-	if n_casted_bounding_spheres < casted_bounding_spheres.count
-	{
-		casted_bounding_spheres[n_casted_bounding_spheres] = sphere;
-		n_casted_bounding_spheres += 1;
-	}else{
-		log_error("Too many Casted Spheres");
-	}
-}
+objects : [3] PO;
 
 
 PHYSICS_FREQUENCY :: 100;
@@ -76,14 +57,24 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	
 	draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
 
-	position := float3.{y = 1, z = 2};
-	camera_pitch_yaw : float2 = .{y = -.2};
+	position := float3.{y = 4, z = 0};
+	camera_pitch_yaw : float2 = .{y = -PI};
 	
 	log("Entering Main Loop");
-	objects[0].translation.position.x = 3;
-	objects[1].translation.position.x = 0;
-	objects[0].translation.position.y = 0;
-	objects[1].translation.position.y = 0.2;
+	reset_Physics :: () #expand
+	{
+		objects[0].translation.position = .{x =  4};
+		objects[1].translation.position = .{x =  1};
+		objects[2].translation.position = .{x = -5};
+		objects[0].translation.velocity = .{x = -0.8};
+		objects[1].translation.velocity = .{x =  0};
+		objects[2].translation.velocity = .{x =  0.2};
+
+		objects[0].mass = 1;
+		objects[1].mass = 0.01;
+		objects[2].mass = 1;
+	}
+	reset_Physics();
 	
 	while atomic_volatile_read(*platform.exit) == 0
 	{
@@ -101,6 +92,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		draw_buffer.mouse_position_relative_to_top_left = input.mouse.position_relative_to_top_left;
 
 		{
+			if is_Button_Pressed(*input, .R) reset_Physics();
 			//
 			// Movement
 			//
@@ -112,7 +104,6 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 				if(is_Button_Pressed(*input, .D)) velocity += .{ 1, 0, 0};
 				if(is_Button_Pressed(*input, .Q)) velocity += .{ 0, 1, 0};
 				if(is_Button_Pressed(*input, .E)) velocity += .{ 0,-1, 0};
-
 			}
 			//
 			// Rotation
@@ -178,101 +169,187 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		//
 		// Physics
 		//
-		
+
 		{
 			dt :: DELTA;
+			log("dt = %", dt);
+			log("n_objects = %", objects.count);
 			gizmo_At :: (center : float3, size : float = 1) #expand
 			{
 				add_Line(draw_buffer, center, center + .{y = size}, GREEN);
 				add_Line(draw_buffer, center, center + .{z = size}, BLUE);
 				add_Line(draw_buffer, center, center + .{x = size}, RED);
 			}
-			if objects[0].translation.position.x <  0  objects[0].translation.position.x = 3;
-			if objects[1].translation.position.x < -1  objects[0].translation.position.x = 0;
-			objects[0].translation.velocity.x = -0.1;
-			objects[1].translation.velocity.x = -0.15;
-			n_casted_bounding_spheres = 0;
+
+			for objects  if length_Squared(it.translation.position) > 100
+			{
+				reset_Physics();
+				break;
+			}
 			
 			for *o, i: objects
 			{
 				o.translation.velocity += o.translation.acceleration * dt;
-				new_pos := o.translation.position + o.translation.velocity * dt;
-				//gizmo_At(o.translation.position);
-				add_Casted_Sphere(.{o.translation.position, new_pos, o.bounding_sphere_radius});
+				//gizmo_At(o.translation.position);!
 			}
 			collision_pairs : [..] struct {a : int; b : int; time : float;};
 			array_reserve(*collision_pairs, objects.count * objects.count - 1);
 			defer array_free(collision_pairs);
 
-			solve_Quadratic :: (t2 : float, t1 : float, t0 : float) -> (x1 : float, x2 : float, n_sol : int)
+			solve_Quadratic :: (t2 : float, t1 : float, t0 : float) -> (x1 : float, x2 : float, n_sol : bool)
 			{
-				EPS :: 0.00001;
-				//  -t1 +- sqrt(t1 * t1 - 4 * t2 * t0)
-				// ------------------------
-				//           2 * t2
+				d := t1 * t1 - 4 * t2 * t0;
+				if float_compare(d, 0, .L)  return -1,-1,false;
+				r := sqrt(d);
+				return 2 * t0/(-t1 - r), 2 * t0/(-t1 + r), true;
+			}
 
-				if abs(t2) < EPS && abs(t1) > EPS
+			cast_Bounding_Sphere :: (active : *PO, colliding_with : *PO) -> (intersect_time : float, do_intersect : bool)
+			{
+				combined_radius := active.bounding_sphere_radius + colliding_with.bounding_sphere_radius;
+				start_diff := active.translation.position - colliding_with.translation.position;
+				delta_diff := (active.translation.velocity - colliding_with.translation.velocity) * dt;
+				t2_part :=     dot(delta_diff, delta_diff);
+				t1_part := 2 * dot(start_diff, delta_diff);
+				t0_part :=     dot(start_diff, start_diff) - combined_radius * combined_radius;
+				sol1, sol2, exists := solve_Quadratic(t2_part, t1_part, t0_part);
+				hit_time :float= 1.1;
+				// Comparing with NaN is possible here, so we filter it out now so we can later rely on non NaN compares which are faster!
+				sol1_l := float_compare(0, sol1, .L);
+				sol1_u := float_compare(sol1, 1, .LE);
+				sol2_l := float_compare(0, sol2, .L);
+				sol2_u := float_compare(sol2, 1, .LE);
+				if sol1_l && sol1_u  hit_time = sol1;
+				if sol2_l && sol2_u && sol2 < hit_time  hit_time = sol2;
+				log("% % % %",sol1, sol2, exists && (0 < hit_time && hit_time <= 1), hit_time);
+				return hit_time , exists && (0 < hit_time && hit_time <= 1);
+			}
+
+			log("O(n^2) Collision checking loop:");
+			for active_idx : 0..objects.count-1
+			{
+				active := *objects[active_idx];
+
+				active.local_time = 0;
+
+				//add_Line(draw_buffer, active.start, active.end, GREEN);
+				for colliding_with_idx : active_idx+1..objects.count-1
 				{
-					return t0/t1,0,1;
-				}else if abs(t2) < EPS && abs(t1) < EPS
+					colliding_with := *objects[colliding_with_idx];
+
+					distance := length(active.translation.position - colliding_with.translation.position);
+					minimum_distance := active.bounding_sphere_radius + colliding_with.bounding_sphere_radius;
+					assert(distance > minimum_distance);
+
+
+					collision_time, are_colliding := cast_Bounding_Sphere(active, colliding_with);
+					log("%->%? = %", active_idx, colliding_with_idx, are_colliding);
+					if are_colliding  array_add(*collision_pairs, .{active_idx, colliding_with_idx, collision_time});
+				}
+			}
+			
+			for collision_pairs
+			{
+				a := *objects[it.a];
+				b := *objects[it.b];
+				a_col := a.translation.position + it.time * a.translation.velocity;
+				b_col := b.translation.position + it.time * b.translation.velocity;
+				add_Line(draw_buffer, a.translation.position, a_col, BLUE);
+				add_Line(draw_buffer, b.translation.position, b_col, GREEN);
+				add_Line(draw_buffer, a_col, b_col, RED);
+			}
+			cmp :: (a : type_of(collision_pairs.data[0]), b : type_of(a)) -> s64
+			{
+				delta := a.time - b.time;
+				if delta > 0  return  1;
+				if delta < 0  return -1;
+				return 0;
+			}
+			quick_sort(collision_pairs, cmp);
+			current_time : float = 0;
+
+			advance_In_Time_To_No_Collision :: (obj : * PO, time : float) #expand
+			{
+				log("Advancing [%] to time % from %", obj, time, current_time);
+				assert(time > current_time);
+				delta_time := time - current_time;
+				assert(obj.local_time < time);
+				obj.translation.position += (time - current_time) * (obj.translation.velocity * dt);
+			}
+			log("% Collisions", collision_pairs.count);
+			for collision_pairs
+			{
+				a := *objects[it.a];
+				b := *objects[it.b];
+				assert(a.local_time >= current_time);
+				assert(b.local_time >= current_time);
+				assert(it.time >= current_time);
+				advance_In_Time_To_No_Collision(a, it.time);
+				advance_In_Time_To_No_Collision(b, it.time);
+				current_time = it.time;
+				
+				add_Line(draw_buffer, a.translation.position, b.translation.position, PURPLE);
+
+				direction := normalize(b.translation.position - a.translation.position, .{});
+				
+				a_vel_in_direction := dot(a.translation.velocity, direction);
+				a.translation.velocity -= direction * a_vel_in_direction;
+
+				b_vel_in_direction := dot(b.translation.velocity, direction);
+				b.translation.velocity -= direction * b_vel_in_direction;
+
+				combined_mass := a.mass + b.mass;
+
+				a_vel_in_direction_after := (a.mass - b.mass)/combined_mass * a_vel_in_direction + 2 * b.mass/combined_mass * b_vel_in_direction;
+				b_vel_in_direction_after := 2 * a.mass/combined_mass * a_vel_in_direction + (b.mass - a.mass)/combined_mass * b_vel_in_direction;
+
+				a_change := direction * a_vel_in_direction_after;
+				b_change := direction * b_vel_in_direction_after;
+				a.translation.velocity += a_change;
+				b.translation.velocity += b_change; 
+				
+				//
+				// @Incomplete: This is fine for 2 objects, but as soon as a third one comes into play
+				//  we need to reevaluate the collisions, because now the bounce might
+				//  collide with the third one despite it before not doing so
+				//
+				#if 0
 				{
-					return 0,0,0;
-				}else  if abs(t2) > EPS && abs(t1) < EPS
+				for * o, oi: objects
 				{
-					n_discr  := t0/t2;
-					if n_discr < 0  return 0,0,0;
-					sol := sqrt(n_discr);
-					return sol, -sol, 2;
-				}else{
-					denom := 2 * t2;
-					discr := t1 * t1 - 4 * t2 * t0;
-					if discr < 0  return 0,0,0;
-					sqrt_solved := sqrt(discr);
-					sol1 := (-t1 + sqrt_solved)/denom;
-					sol2 := (-t1 - sqrt_solved)/denom;
-					return sol1, sol2, 2;
+					if oi != it.a
+					{
+						collision_time, are_colliding := cast_Bounding_Sphere(a, o);
+						log("[%] = %", are_colliding, collision_time);
+						collision_time += current_time;
+						if are_colliding  array_add(*collision_pairs, .{it.a, oi, collision_time});
+					}
+					if oi != it.b
+					{
+						collision_time, are_colliding := cast_Bounding_Sphere(b, o);
+						collision_time += current_time;
+						log("[%] = %", are_colliding, collision_time);
+						if are_colliding  array_add(*collision_pairs, .{it.b, oi, collision_time});
+					}
+				}
+				quick_sort(collision_pairs, cmp);
 				}
 			}
 
-
-			for active_idx : 0..n_casted_bounding_spheres-1
+			for * objects
 			{
-				active := *casted_bounding_spheres[active_idx];
-				//add_Line(draw_buffer, active.start, active.end, GREEN);
-				for colliding_with_idx : active_idx+1..n_casted_bounding_spheres-1
-				{
-					colliding_with := *casted_bounding_spheres[colliding_with_idx];
-					combined_radius := active.radius + colliding_with.radius;
-					start_diff := active.start - colliding_with.start;
-					delta_diff := active.end - active.start - colliding_with.end + colliding_with.start;
-					t2_part := dot(delta_diff, delta_diff);
-					t1_part := 2 * dot(start_diff, delta_diff);
-					t0_part := dot(start_diff, start_diff) - combined_radius * combined_radius;
-					sol1, sol2, exists := solve_Quadratic(t2_part, t1_part, t0_part);
-					if exists
-					{
-						hit_time : float;
-						if exists == 1  hit_time = sol1;
-						else            hit_time = min(sol1, sol2);
-						if hit_time <= 1 && hit_time >= 0
-						{
-							log("Bounding Spheres are hitting at %0%%", hit_time);
-							array_add(*collision_pairs, .{active_idx, colliding_with_idx, hit_time});
-						}
-					}
-				}
+				advance_In_Time_To_No_Collision(it, 1);
 			}
 
 			
 			id := identity(4, float);
 			TET :: 4;
-			for o : objects
+			for * o : objects
 			{
 				add_Mesh(draw_buffer, .{TET, add_Offset(id, o.translation.position)});
+				gizmo_At(o.translation.position);
 			}
 		}
-
-
 
 
 
@@ -320,3 +397,5 @@ Profiler :: #import "Tracy"(PROFILER);
 #import "Atomics";
 #import "Sync";
 #import "Color";
+#import "Sort";
+#import "IUMath";
