@@ -279,7 +279,7 @@ Draw_Buffer :: struct
 	light_sources : [20] Light_Source;
 
 	n_lines : int;
-	lines   : [200] Line;
+	lines   : [400] Line;
 
 	camera : Camera;
 };
@@ -626,8 +626,10 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			out_start_copy := outcode_2(start_copy, min, max);
 			out_end_copy   := outcode_2(end_copy, min, max);
 			pick_next := 0;
-			while true
+			it := 0;
+			while it < 10
 			{
+				it += 1;
 				if out_start_copy == 0 && out_end_copy == 0
 				{
 					succ = true;
