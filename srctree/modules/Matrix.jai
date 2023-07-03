@@ -48,8 +48,9 @@ operator * :: (a : Matrix($N, $K, $T), b : Matrix(K, $M, T)) -> Matrix(N, M, T)
 	return res;
 }
 
-affine_Transform :: (mat : Matrix($N, N, $T), v : Vector(N-1, T)) -> Vector(N, T)
+affine_Transform :: (mat : Matrix(4, 4, $T), v : Vector(3, T)) -> Vector(4, T)
 {
+	N :: 4;
 	res : Vector(N, T);
 	for row: 0..N-1
 	{

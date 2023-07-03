@@ -2,7 +2,7 @@ STARTUP_TIME : Apollo_Time;
 main :: ()
 {
 	Profiler.NameThread(#procedure_name());
-	Profiler.AppInfo(OPTIMIZATIONS);
+	Profiler.AppInfo(Config.Profiler_Info);
 	STARTUP_TIME = current_time_monotonic();
 	context.logger = logger;
 
@@ -20,7 +20,7 @@ main :: ()
 		platform_context.sleep = sleep;
 	}
 
-	game := load_Game_Code(Game_DLL_Name);
+	game := load_Game_Code(Config.Game_DLL_Name);
 
 	start_Thread(xx game, *platform_context);
 	
@@ -44,14 +44,14 @@ main :: ()
 
 load_Game_Code :: ($dll_name : string) -> ENTRY_FUNCTION
 {
-	#if COMPILATION_MODE == .DEVELOPEMENT
+	#if Config.COMPILATION_MODE == .DEVELOPEMENT
 	{
 		print("Attempting to load from \"%\"\n", dll_name);
 		lib := load_Dynamic_Library(dll_name);
-		return cast(ENTRY_FUNCTION) load_Function(*lib, ENTRY_FUNCTION_NAME);
+		return cast(Config.ENTRY_FUNCTION) load_Function(*lib, Config.ENTRY_FUNCTION_NAME);
 	}else{
-		assert(false, "This has not been done yet");
 		print("We are in release mode, so we do not load from a dll\n");
+		assert(false, "This has not been done yet");
 		return null;
 	}
 }
@@ -69,6 +69,6 @@ logger :: (message : string, data : *void, info : Log_Info)
 #import "Atomics";
 #import "Sync";
 #import "Common";
-Profiler :: #import "Tracy"(PROFILER);
+Profiler :: #import "Tracy";
+Config   :: #import "Config";
 
-//#run main();

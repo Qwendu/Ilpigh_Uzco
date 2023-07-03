@@ -1,5 +1,4 @@
 #scope_export
-#module_parameters(ENABLE := false);
 
 AppInfo :: (message : string) #expand #no_debug #no_context
 {
@@ -119,3 +118,6 @@ Message :: ($message : string) #expand #no_debug #no_context
 }
 
 Jai :: #import "Compiler";
+Config :: #import "Config";
+
+ENABLE :: Config.Profiler_Enabled;

@@ -1,5 +1,4 @@
 #scope_export
-#module_parameters(PROFILER : bool);
 #import "Common";
 #import "Mesh";
 
@@ -803,7 +802,7 @@ lighted_shader :Pixel_Shader: (in : Shader_Input, lights : [] Light_Source) -> S
 
 
 
-Profiler :: #import "Tracy"(PROFILER);
+Profiler :: #import "Tracy";
 #import "Atomics";
 #import "Async_Buffer";
 #import "Basic";

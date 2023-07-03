@@ -1,6 +1,5 @@
-RUN\ GAME :: true;
-
-WANT_VTUNE :: true;
+WANT_VTUNE  :: false;
+BACKEND_X64 :: false;
 
 
 Disassembler :: #import,file "srctree/modules/Disassembler.jai"(ENABLE = false);
@@ -10,24 +9,32 @@ modules          :: "srctree/modules";
 
 build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 {
-	BACKEND_X64 :: true;
+	log("Backend = %", ifx BACKEND_X64 then "X64" else "LLVM");
 	OPTIMIZATION : Jai.Optimization_Type:  .DEBUG;
-	PROFILER_ENABLED := (OPTIMIZATION >= Jai.Optimization_Type.OPTIMIZED);
+	log("Optimization = %", OPTIMIZATION);
 
-	VTUNE := PROFILER_ENABLED && WANT_VTUNE;
-	if VTUNE
+	OPTIMIZING_BUILD := (OPTIMIZATION == Jai.Optimization_Type.OPTIMIZED || OPTIMIZATION == .VERY_OPTIMIZED);
+
+
+	PROFILER_ENABLED := false;
+	VTUNE := false;
+	if OPTIMIZING_BUILD
 	{
-		PROFILER_ENABLED = false; // Disable Profiler to not interfere with VTune measurements
-		print("Building for VTune\n");
+		PROFILER_ENABLED = false;
+		VTUNE            = true;
+		log("VTune Build");
 	}
-	print("Opt = %\n", OPTIMIZATION);
-
+	if PROFILER_ENABLED  log("Profiler Enabled");
 	
 	build_name := sprint("Platform %", os);
+	defer free(build_name);
 	exec_name  := sprint("IU_%",os);
+	defer free(exec_name);
 	game_name  := sprint("Ilpigh Uzco");
+	defer free(game_name);
 
 	platform_modules := sprint("srctree/platform/%/", os);
+	defer free(platform_modules);
 
 
 
@@ -39,7 +46,7 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 	#if BACKEND_X64
 	{
 		options_platform.backend = .X64;
-		options_game.backend = .X64;
+		options_game.backend     = .X64;
 	}else{
 		options_platform.backend = .LLVM;
 		options_game.backend     = .LLVM;
@@ -87,20 +94,29 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 		Jai.set_build_options(options_game    , workspace_game);
 	}
 
-	optimization_string := sprint(#string DONE
-Optimization Level = %
-	Vectorization = % %
-DONE, OPTIMIZATION, ifx options_game.llvm_options.enable_slp_vectorization then "SLP Vectorization" else "", ifx options_game.llvm_options.enable_loop_vectorization then "+ Loop Vectorization" else "");
+	{
+		generated_config : String_Builder;
+		print_to_builder(*generated_config, #string DONE
+#scope_export
+Profiler_Info : string : "Optimization Level = %\n";
+Game_DLL_Name : string : "%";
+COMPILATION_MODE : enum { RELEASE; DEVELOPEMENT;} : .DEVELOPEMENT;
+Profiler_Enabled : bool : %;
+ENTRY_FUNCTION  :: #type (*Platform) -> void #c_call;
+ENTRY_FUNCTION_NAME : string : "game_entry";
 
-	shared_build_string := sprint(#string DONE
-		Game_DLL_Name    : string                        : "%";
-		COMPILATION_MODE : enum {RELEASE; DEVELOPEMENT;} : %;
-		PROFILER :bool : %;
-		ENTRY_FUNCTION_NAME :: "game_entry";
-		OPTIMIZATIONS :: #string DONE2
-% DONE2;
-	DONE, game_name, ".DEVELOPEMENT", PROFILER_ENABLED ,optimization_string);
+#scope_file
+
+#import "Basic";
+#import "Common";
+
+		DONE, OPTIMIZATION, game_name, PROFILER_ENABLED);
+		
+
+
+		if !write_entire_file(".build/Generated_Config.jai", *generated_config)  return false;
 	
+	}
 
 
 	compile :: (workspace : Workspace, $main_file : string, plugins : [] string) -> bool #expand
@@ -108,7 +124,6 @@ DONE, OPTIMIZATION, ifx options_game.llvm_options.enable_slp_vectorization then 
 		Jai.compiler_begin_intercept(workspace);
 		disassembler := Disassembler.get_plugin(workspace);
 
-		Jai.add_build_string(shared_build_string, workspace);
 		Jai.add_build_file(main_file, workspace);
 
 		success : bool = true;
@@ -133,12 +148,9 @@ DONE, OPTIMIZATION, ifx options_game.llvm_options.enable_slp_vectorization then 
 #run {
 	Jai.set_build_options_dc(.{do_output = false});
 
+	context.logger = logger;
 	succ := build_Game();
-	if succ print("Built game!\n");
-	if(succ && RUN\ GAME)
-	{
-
-	}
+	if succ log("Success");
 }
 
 
@@ -146,4 +158,13 @@ Jai :: #import "Compiler";
 #import "Basic";
 
 
+logger :: (message : string, data : *void, log_info : Log_Info)
+{
+	if message.count == 0  return;
+	print("[Build] ");
+	print("%",message);
+	print("\n");
+}
 
+
+#import "File";
