@@ -25,4 +25,6 @@ Color + Light Shaded Triangles bound to colloding Tetraeders:
 
 ### 5 Hz Collision
 The same collisions at the same points!
+
+
 ![](media/5HzTetraederCollisions.gif)
