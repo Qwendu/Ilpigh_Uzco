@@ -51,7 +51,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	
 	draw_buffer := get_Write_Pointer(graphics.command_buffer_writer);
 
-	position := float3.{-1.320918, -0.891694, -1.306482};
+	position := float3.{-3.320918,  1.891694, -3.306482};
 	camera_pitch_yaw := float2.{-3.98, -0.3954};
 	
 	N_COLLISIONS := 0;
@@ -116,7 +116,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 		mouse_delta := float2.{input.mouse.delta.x * 0.1, input.mouse.delta.y * 0.1};
 		
-		DO_PHYSICS_STEP :bool = false;
+		DO_PHYSICS_STEP :bool = true;
 	
 		draw_buffer.submission_time = current_time_monotonic();
 		draw_buffer.mouse_position_relative_to_top_left = input.mouse.position_relative_to_top_left;
@@ -168,7 +168,14 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 			position += affine_Transform(camera_orientation,velocity).xyz * DELTA;
 			draw_buffer.camera.position = position;
 			draw_buffer.camera.rotation = rotation;
-			draw_buffer.camera.far = 12;
+			draw_buffer.camera.far = 20;
+		}
+
+		gizmo_At :: (center : float3, size : float = 1) #expand
+		{
+			add_Line(draw_buffer, center, center + .{y = size}, GREEN);
+			add_Line(draw_buffer, center, center + .{z = size}, BLUE);
+			add_Line(draw_buffer, center, center + .{x = size}, RED);
 		}
 	
 		//
@@ -198,8 +205,9 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 			//add_Offset(*instance_1.model_to_world, .{y = -0.1 ,z = -2});
 			//add_Mesh(draw_buffer, instance_1);
 
-			add_Light_Source(draw_buffer, .{position = .{0, 2, 0}, range = 5, color = .{1,1,1,1}});
-			add_Light_Source(draw_buffer, .{position = .{0, -2, 0}, range = 5, color = .{1,1,1,1}});
+			p1 := float3.{-2,  2, 0};
+			add_Light_Source(draw_buffer, .{position = p1, range = 10, color = .{1,1,1,1}});
+			gizmo_At(p1);
 		}
 		
 		//
@@ -208,12 +216,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 		{
 			dt :: DELTA;
-			gizmo_At :: (center : float3, size : float = 1) #expand
-			{
-				add_Line(draw_buffer, center, center + .{y = size}, GREEN);
-				add_Line(draw_buffer, center, center + .{z = size}, BLUE);
-				add_Line(draw_buffer, center, center + .{x = size}, RED);
-			}
+
 
 
 			for objects  if length_Squared(it.translation.position) > 100
@@ -412,8 +415,8 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 				//array_add(*persistent_lines, .{a.translation.position, b.translation.position});
 				array_add(*persistent_lines, .{a.translation.position, world_col_a});
 				array_add(*persistent_lines, .{b.translation.position, world_col_b});
-				//direction := normalize(b.translation.velocity - a.translation.velocity, .{}); 
-				direction := normalize(it.normal, .{}); @@Direction_Used_For_Plastic_Collision
+				direction := normalize(b.translation.velocity - a.translation.velocity, .{}); 
+				//direction := normalize(it.normal, .{}); @@Direction_Used_For_Plastic_Collision
 				
 
 				a_vel_in_direction := dot(a.translation.velocity, direction);
@@ -464,23 +467,23 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 			for persistent_lines
 			{
-				add_Line(draw_buffer, it.start, it.end, YELLOW);
+				//add_Line(draw_buffer, it.start, it.end, YELLOW);
 			}
 
 			id := identity(4, float);
 			TET :: 4;
 			for * o : objects
 			{
-				//add_Mesh(draw_buffer, .{TET, add_Offset(id, o.translation.position)});
+				add_Mesh(draw_buffer, .{TET, add_Offset(id, o.translation.position)});
 				//gizmo_At(o.translation.position);
-				add_Line(draw_buffer, o.translation.position, o.translation.position + o.translation.velocity * dt, RED);
-				add_Line(draw_buffer, o.tet[0] + o.translation.position, o.tet[1] + o.translation.position, GREY);
-				add_Line(draw_buffer, o.tet[0] + o.translation.position, o.tet[2] + o.translation.position, GREY);
-				add_Line(draw_buffer, o.tet[0] + o.translation.position, o.tet[3] + o.translation.position, GREY);
+				//add_Line(draw_buffer, o.translation.position, o.translation.position + o.translation.velocity * dt, RED);
+				//add_Line(draw_buffer, o.tet[0] + o.translation.position, o.tet[1] + o.translation.position, GREY);
+				//add_Line(draw_buffer, o.tet[0] + o.translation.position, o.tet[2] + o.translation.position, GREY);
+				//add_Line(draw_buffer, o.tet[0] + o.translation.position, o.tet[3] + o.translation.position, GREY);
 
-				add_Line(draw_buffer, o.tet[1] + o.translation.position, o.tet[2] + o.translation.position, GREY);
-				add_Line(draw_buffer, o.tet[1] + o.translation.position, o.tet[3] + o.translation.position, GREY);
-				add_Line(draw_buffer, o.tet[2] + o.translation.position, o.tet[3] + o.translation.position, GREY);
+				//add_Line(draw_buffer, o.tet[1] + o.translation.position, o.tet[2] + o.translation.position, GREY);
+				//add_Line(draw_buffer, o.tet[1] + o.translation.position, o.tet[3] + o.translation.position, GREY);
+				//add_Line(draw_buffer, o.tet[2] + o.translation.position, o.tet[3] + o.translation.position, GREY);
 			}
 		}
 

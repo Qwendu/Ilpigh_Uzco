@@ -739,7 +739,7 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			{
 				if depth_buffer[y * bb.stride + x] == 1 continue x;
 				actual_shader_calls += 1;
-				out := color_shader(shader_buffer[y * bb.stride + x], active_lights);
+				out := lighted_shader(shader_buffer[y * bb.stride + x], active_lights);
 				color := AVector(4, float32).{data = out.color.vec.data};
 				rgb := convert(clamp(color * 255, .{0,0,0,0}, .{255,255,255,255}), s32);
 				rgb_copy := rgb;
