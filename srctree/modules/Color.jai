@@ -30,5 +30,10 @@ operator * :: (l : Color, r : Color) -> Color
 	return res;
 }
 
+operator * :: (l : Color, r : float) -> Color
+{
+	return Color.{vec = l.vec * r};
+}
+
 
 #import "Vector";

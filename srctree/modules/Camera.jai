@@ -76,6 +76,12 @@ world_To_Camera :: (cam : *Camera) -> float4x4
 	return rotation * position;
 }
 
+camera_To_World_Rotation :: (cam : *Camera) -> float4x4
+{
+	res : float4x4 = rotation_Matrix(inverse(cam.rotation));
+	return res;
+}
+
 
 Cube_Camera :: struct
 {

@@ -13,7 +13,7 @@ persistent_lines : [..] struct { start : float3; end : float3;};
 
 
 
-PHYSICS_FREQUENCY :: 100;
+PHYSICS_FREQUENCY :: 30;
 
 #program_export
 game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
@@ -161,6 +161,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 			pitch := rotation_Around_Axis(.{-1,0,0}, camera_pitch_yaw.y);
 			yaw   := rotation_Around_Axis(.{0,1,0},  camera_pitch_yaw.x);
 			rotation := pitch * yaw;
+
 			camera_orientation := rotation_Matrix(inverse(rotation));
 			while camera_pitch_yaw.x >= 2 * PI  camera_pitch_yaw.x -= 2 * PI;
 			while camera_pitch_yaw.x <  0       camera_pitch_yaw.x += 2 * PI;
@@ -536,3 +537,4 @@ Profiler :: #import "Tracy";
 #import "Color";
 #import "Sort";
 #import "IUMath";
+#import "Camera";

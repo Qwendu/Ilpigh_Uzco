@@ -159,6 +159,16 @@ clamp :: inline (v : $V/AVector, min : V, max : V) -> V
 	return res;
 }
 
+pow :: (av : $V/AVector, exp : float) -> V
+{
+	res := av;
+	for 0..av.dim-1
+	{
+		res.data[it] = pow(av.data[it], exp);
+	}
+	return res;
+}
+
 #scope_file
 #import "Basic";
 

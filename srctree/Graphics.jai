@@ -1,6 +1,7 @@
 #scope_export
 #import "Common";
 #import "Mesh";
+GAMMA : float : 2.2;
 
 
 Draw_Args :: struct
@@ -244,6 +245,14 @@ draw_logger :: (message : string, data : *void, info : Log_Info)
 
 
 
+Shader_Global :: struct
+{
+	camera_position : float3;
+	camera_direction : float3;
+};
+
+
+
 
 Shader_Input :: struct
 {
@@ -305,6 +314,7 @@ screen2 :: Vector(2, s32 /*fixed_point 26.6*/);
 buffer_memory : [] u8;
 depth_buffer : [] float;
 shader_buffer : [] Shader_Input;
+shader_global : Shader_Global;
 
 // Optimization Records, in CSV format
 /* 400x300
@@ -327,10 +337,10 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	LOG_CULLING  :: false;
 
 	FIXEDPOINT_BITS :: 4;
-	FIXEDPOINT_MASK :: (1<<FIXEDPOINT_BITS)-1;
 	FIXEDPOINT_ONE  ::  1<<FIXEDPOINT_BITS;
+	FIXEDPOINT_MASK :: (FIXEDPOINT_ONE)-1;
 	
-	active_lights :[] Light_Source = draw_buffer.light_sources;
+	active_lights : [] Light_Source = draw_buffer.light_sources;
 	active_lights.count = draw_buffer.n_light_sources;
 
 
@@ -344,6 +354,14 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 	mouse_pos_ndc *= 2;
 	mouse_pos_ndc -= .{1,1};
 	aspect : float = bb.size.x/cast(float)bb.size.y;
+
+	//
+	// Setup shader globals
+	// 
+	{
+		shader_global.camera_position  = draw_buffer.camera.position;
+		shader_global.camera_direction = affine_Transform(camera_To_World_Rotation(*draw_buffer.camera), float3.{0,0,-1}).xyz;
+	}
 
 	//
 	// Reset Buffers Depth, Shader, Pixel
@@ -739,8 +757,9 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 			{
 				if depth_buffer[y * bb.stride + x] == 1 continue x;
 				actual_shader_calls += 1;
-				out := lighted_shader(shader_buffer[y * bb.stride + x], active_lights);
+				out := fullbright_shader(shader_buffer[y * bb.stride + x], active_lights);
 				color := AVector(4, float32).{data = out.color.vec.data};
+				color = pow(color, GAMMA);
 				rgb := convert(clamp(color * 255, .{0,0,0,0}, .{255,255,255,255}), s32);
 				rgb_copy := rgb;
 				shuffle := AVector(16, u8).{x = 0x08,y = 0x04,z = 0x00,w = 0x0C};
@@ -772,6 +791,18 @@ color_shader :Pixel_Shader: (in : Shader_Input, lights : [] Light_Source) -> Sha
 	using in;
 	out : Shader_Output;
 	out.color = in.material.color;
+	return out;
+}
+
+fullbright_shader : Pixel_Shader : (in : Shader_Input, lights : [] Light_Source) -> Shader_Output
+{
+	using in;
+	using shader_global;
+
+	out : Shader_Output;
+	camera_dot := dot(normalize(position - camera_position, .{}), camera_direction);
+	brightness_factor : float = 0.8 + max(camera_dot, 0) * 0.2;
+	out.color = material.color * brightness_factor;
 	return out;
 }
 
