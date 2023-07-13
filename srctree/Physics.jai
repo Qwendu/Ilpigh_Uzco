@@ -40,31 +40,34 @@ cast_Tetraeder :: (a : *PO, b : *PO, dt : float) -> (time: float, collision: boo
 	collision_point_a : float3;
 	collision_point_b : float3;
 	collision_normal  : float3;
-	{
-		col_0_t, col_0, col_0_point_tet, col_0_normal := point_Tet_Collision(b.tet[0] + b.translation.position, relative_velocity, a.tet, a.translation.position, dt);
-		col_1_t, col_1, col_1_point_tet, col_1_normal := point_Tet_Collision(b.tet[1] + b.translation.position, relative_velocity, a.tet, a.translation.position, dt);
-		col_2_t, col_2, col_2_point_tet, col_2_normal := point_Tet_Collision(b.tet[2] + b.translation.position, relative_velocity, a.tet, a.translation.position, dt);
-		col_3_t, col_3, col_3_point_tet, col_3_normal := point_Tet_Collision(b.tet[3] + b.translation.position, relative_velocity, a.tet, a.translation.position, dt);
 
-		if float_compare(col_0_t, collision_time, .L) && col_0 {collision_time = col_0_t; collision_point_a = col_0_point_tet; collision_point_b = b.tet[0]; collision_normal = col_0_normal;}
-		if float_compare(col_1_t, collision_time, .L) && col_1 {collision_time = col_1_t; collision_point_a = col_1_point_tet; collision_point_b = b.tet[1]; collision_normal = col_1_normal;}
-		if float_compare(col_2_t, collision_time, .L) && col_2 {collision_time = col_2_t; collision_point_a = col_2_point_tet; collision_point_b = b.tet[2]; collision_normal = col_2_normal;}
-		if float_compare(col_3_t, collision_time, .L) && col_3 {collision_time = col_3_t; collision_point_a = col_3_point_tet; collision_point_b = b.tet[3]; collision_normal = col_3_normal;}
+
+	test_Point_Tet :: (point : float3, tet : [4] float3, tet_position : float3, collision_point_point : *float3, collision_point_tet : *float3, $$invert_normal : bool = false) #expand
+	{
+		col_t, col, col_point_tet, col_normal := point_Tet_Collision(point, ifx invert_normal then relative_velocity * -1 else relative_velocity, tet, tet_position, dt);
+		if col && float_compare(col_t, collision_time, .L)
+		{
+			collision_time = col_t;
+			collision_normal   = ifx invert_normal then col_normal * -1 else col_normal;
+			collision_point_point.* = point;
+			collision_point_tet  .* = col_point_tet + tet_position;
+		}
 	}
 	{
-		col_0_t, col_0, col_0_point_tet, col_0_normal := point_Tet_Collision(a.tet[0] + a.translation.position, -1 * relative_velocity, b.tet, b.translation.position, dt);
-		col_1_t, col_1, col_1_point_tet, col_1_normal := point_Tet_Collision(a.tet[1] + a.translation.position, -1 * relative_velocity, b.tet, b.translation.position, dt);
-		col_2_t, col_2, col_2_point_tet, col_2_normal := point_Tet_Collision(a.tet[2] + a.translation.position, -1 * relative_velocity, b.tet, b.translation.position, dt);
-		col_3_t, col_3, col_3_point_tet, col_3_normal := point_Tet_Collision(a.tet[3] + a.translation.position, -1 * relative_velocity, b.tet, b.translation.position, dt);
-
+		test_Point_Tet(b.tet[0] + b.translation.position, a.tet, a.translation.position, *collision_point_b, *collision_point_a, false);
+		test_Point_Tet(b.tet[1] + b.translation.position, a.tet, a.translation.position, *collision_point_b, *collision_point_a, false);
+		test_Point_Tet(b.tet[2] + b.translation.position, a.tet, a.translation.position, *collision_point_b, *collision_point_a, false);
+		test_Point_Tet(b.tet[3] + b.translation.position, a.tet, a.translation.position, *collision_point_b, *collision_point_a, false);
+	}
+	{
 		// Invert normal when it comes from the b side! @@Direction_Used_For_Plastic_Collision
-		if float_compare(col_0_t, collision_time, .L) && col_0 {collision_time = col_0_t; collision_point_b = col_0_point_tet; collision_point_a = a.tet[0]; collision_normal = col_0_normal * -1;}
-		if float_compare(col_1_t, collision_time, .L) && col_1 {collision_time = col_1_t; collision_point_b = col_1_point_tet; collision_point_a = a.tet[1]; collision_normal = col_1_normal * -1;}
-		if float_compare(col_2_t, collision_time, .L) && col_2 {collision_time = col_2_t; collision_point_b = col_2_point_tet; collision_point_a = a.tet[2]; collision_normal = col_2_normal * -1;}
-		if float_compare(col_3_t, collision_time, .L) && col_3 {collision_time = col_3_t; collision_point_b = col_3_point_tet; collision_point_a = a.tet[3]; collision_normal = col_3_normal * -1;}
+		test_Point_Tet(a.tet[0] + a.translation.position, b.tet, b.translation.position, *collision_point_a, *collision_point_b, true);
+		test_Point_Tet(a.tet[1] + a.translation.position, b.tet, b.translation.position, *collision_point_a, *collision_point_b, true);
+		test_Point_Tet(a.tet[2] + a.translation.position, b.tet, b.translation.position, *collision_point_a, *collision_point_b, true);
+		test_Point_Tet(a.tet[3] + a.translation.position, b.tet, b.translation.position, *collision_point_a, *collision_point_b, true);
 	}
 
-
+	line_line_collision_is_earliest : bool = false;
 	L :: struct{a:s8; b:s8;c : s8; d : s8;};
 	lines_indices :: L.[.{0,1,2,3}, .{0,3,1,2}, .{0,2,3,1},.{1,2,0,3}, .{1,3,2,0}, .{2,3,0,1}];
 	for a_line : lines_indices
@@ -82,31 +85,17 @@ cast_Tetraeder :: (a : *PO, b : *PO, dt : float) -> (time: float, collision: boo
 			cd_point := C + cd_point_delta;
 			if collision && float_compare(0,time, .LE) && float_compare(time, collision_time, .L)
 			{
+				line_line_collision_is_earliest = true;
 				collision_time = time;
-				collision_point_a = ab_point;
-				collision_point_b = cd_point;
-				a_normal_0 := cross(a.tet[a_line.c] - a.tet[a_line.a], a.tet[a_line.b] - a.tet[a_line.a]);
-				a_normal_1 := cross(a.tet[a_line.d] - a.tet[a_line.a], a.tet[a_line.b] - a.tet[a_line.a]);
-
-				b_normal_0 := cross(b.tet[b_line.c] - b.tet[b_line.a], b.tet[b_line.b] - b.tet[b_line.a]);
-				b_normal_1 := cross(b.tet[b_line.d] - b.tet[b_line.a], b.tet[b_line.b] - b.tet[b_line.a]);
-
-				dot_normal : float = 0;
-				a_normal : float3;
-				b_normal : float3;
-				if dot(a_normal_0, b_normal_0) < dot_normal { dot_normal = dot(a_normal_0, b_normal_0); a_normal = a_normal_0; b_normal = b_normal_0;};
-				if dot(a_normal_0, b_normal_1) < dot_normal { dot_normal = dot(a_normal_0, b_normal_1); a_normal = a_normal_0; b_normal = b_normal_1;};
-				if dot(a_normal_1, b_normal_0) < dot_normal { dot_normal = dot(a_normal_1, b_normal_0); a_normal = a_normal_1; b_normal = b_normal_0;};
-				if dot(a_normal_1, b_normal_1) < dot_normal { dot_normal = dot(a_normal_1, b_normal_1); a_normal = a_normal_1; b_normal = b_normal_1;};
-
-				// TODO(Qwendo):
-				//   collision_normal is not correct for line line collisions on tetraeder
-				//   this results in weird bouncing and tetraeder going inside of each other.
-				collision_normal = b_normal - a_normal;
+				collision_point_a = ab_point + a.translation.position;
+				collision_point_b = cd_point + b.translation.position;
 			}
 		}
 	}
-	
+	if line_line_collision_is_earliest 
+	{
+		collision_normal = relative_velocity; // Hack
+	}
 
 	return collision_time, float_compare(0, collision_time, .LE) && float_compare(collision_time, dt, .LE), collision_point_a, collision_point_b, collision_normal;
 }
