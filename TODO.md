@@ -18,3 +18,6 @@
 - [ ] Physics
 	- [x] Line Drawing for Debugging
 	- [ ] Primitives
+		- [ ] Spheres
+		- [ ] Tetraeder
+			

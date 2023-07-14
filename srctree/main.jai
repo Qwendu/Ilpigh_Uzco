@@ -100,6 +100,12 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	];
 	objects[2].tet = objects[1].tet;
 	reset_Physics();
+
+	obj1 := create_Physics_Object(Physics_Base.{}, UNIT_SPHERE);
+	obj2 := create_Physics_Object(Physics_Base.{}, TETRAEDER);
+	
+	log("obj1 has id %", formatID(obj1));
+	log("obj2 has id %", formatID(obj2));
 	
 
 	while atomic_volatile_read(*platform.exit) == 0

@@ -1,6 +1,131 @@
 #scope_export
 
 
+Physics_ID :: #type,distinct u16;
+Physics_ID_INVALID : Physics_ID : cast,no_check(Physics_ID) 0;
+
+
+Shape_Type :: enum u8 
+{
+	UNKOWN    ::  255;
+	SPHERE    ::  0;
+	TETRAEDER ::  1;
+}
+
+
+formatID :: #bake_arguments formatInt(
+	base = 16, 
+	minimum_digits   = size_of(Physics_ID) * 2,
+	digits_per_comma = 0, 
+	comma_string = "_");
+
+
+
+Physics_Base :: struct
+{
+	translation : PVA(float3);
+	mass        : float = 1; @"assert(mass > 0, \"We cannot have negative masses, or masses that are zero\")";
+}
+
+Physics_Object :: struct(shape_type : Shape_Type)
+{
+	using base : Physics_Base;
+	shape      : Shape(shape_type);
+}
+
+Shape :: struct(shape_type : Shape_Type)
+{
+	#if shape_type == .SPHERE
+	{
+		using sphere : Sphere;
+	}else #if shape_type ==.TETRAEDER
+	{
+		using tetraeder : Tetraeder;
+	}else{
+		unkown_shape : void;
+	}
+}
+
+Tetraeder :: struct
+{
+	vertices : [4] float3;
+};
+Sphere    :: struct
+{
+	radius : float ;
+}
+
+
+
+
+create_Physics_Object :: (base : Physics_Base, shape : $S/Shape) -> Physics_ID
+{
+	#if shape.shape_type == .SPHERE
+	{
+		id := create_Sphere(base, shape);
+		demangle_Physics_ID(id);
+		return id;
+	}else #if shape.shape_type == .TETRAEDER
+	{
+		id := create_Tetraeder(base, shape);
+		demangle_Physics_ID(id);
+		return id;
+	}else{
+		assert(false, "Shape % is not valid", shape.shape_type);
+	}
+}
+
+UNIT_SPHERE :: Shape(.SPHERE).
+{
+	radius = 1,
+};
+
+TETRAEDER :: Shape(.TETRAEDER).
+{
+	vertices = .[
+		.{-1, .5,0},
+		.{0,-.5,0},
+		.{#run cos(60/180.0 * PI), .5,#run -sin( 60/180.0 * PI)},
+		.{#run cos(60/180.0 * PI), .5,#run  sin( 60/180.0 * PI)},
+	],
+};
+
+
+
+Pending_Collision :: struct
+{
+	a : Physics_ID = Physics_ID_INVALID;
+	b : Physics_ID = Physics_ID_INVALID;
+	time  : float = -1;
+	a_point : float3 = ---;
+	b_point : float3 = ---;
+	normal  : float3 = ---;
+};
+
+
+detect_Collision :: (a : Physics_ID, b : Physics_ID, dt : float) -> Pending_Collision
+{
+	a_shape, a_index := demangle_Physics_ID(a);
+	b_shape, b_index := demangle_Physics_ID(b);
+	res : Pending_Collision;
+	res.a = a;
+	res.b = b;
+	if a_shape == .SPHERE && b_shape == .SPHERE
+	{
+		res.time, _, res.a_point, res.b_point, res.normal = cast_Bounding_Sphere(*all_physics_objects.spheres[a_index], *all_physics_objects.spheres[b_index], dt);
+	}else {
+		assert(false, "% - % Collision detection is not implemented!", a_shape, b_shape);
+	}
+	return res;
+}
+
+
+
+
+
+
+
+
 
 PVA :: struct(T : Type)
 {
@@ -8,6 +133,7 @@ PVA :: struct(T : Type)
 	velocity     : T;
 	acceleration : T;
 }
+
 
 PO :: struct
 {
@@ -23,7 +149,29 @@ PO :: struct
 			.{#run cos(120/180.0 * PI),-.5,#run -sin(120/180.0 * PI)},
 			.{#run cos(120/180.0 * PI),-.5,#run  sin(120/180.0 * PI)},
 	];
+	shape : Collision_Shape;
 }
+
+
+Collision_Shape :: struct
+{
+	type : enum 
+	{
+		Sphere    :: 0;
+		Tetraeder :: 1;
+	} = .Sphere;
+	union
+	{
+		bounding_sphere : struct 
+		{
+			radius : float = 1;
+		};
+		tetraeder : struct 
+		{
+			vertices : [4] float3;
+		} = ---;
+	}
+};
 
 
 
@@ -108,11 +256,11 @@ orientation :: (v0 : float3, v1 : float3, v2 : float3, v3 : float3) -> float
 	return dot(d1, cross(d2, d3))/6.0;
 }
 
-cast_Bounding_Sphere :: (active : *PO, colliding_with : *PO, dt : float) -> (intersect_time : float, do_intersect : bool)
+cast_Bounding_Sphere :: (a : *Physics_Object(.SPHERE), b : *Physics_Object(.SPHERE), dt : float) -> (intersect_time : float, do_intersect : bool, col_point_a : float3, col_point_b : float3, normal : float3)
 {
-	combined_radius := active.bounding_sphere_radius + colliding_with.bounding_sphere_radius;
-	start_diff := active.translation.position - colliding_with.translation.position;
-	delta_diff := active.translation.velocity - colliding_with.translation.velocity;
+	combined_radius := a.shape.radius + b.shape.radius;
+	start_diff := a.translation.position - b.translation.position;
+	delta_diff := a.translation.velocity - b.translation.velocity;
 	t2_part :=     dot(delta_diff, delta_diff);
 	t1_part := 2 * dot(start_diff, delta_diff);
 	t0_part :=     dot(start_diff, start_diff) - combined_radius * combined_radius;
@@ -125,7 +273,50 @@ cast_Bounding_Sphere :: (active : *PO, colliding_with : *PO, dt : float) -> (int
 	sol2_u := float_compare(sol2, dt, .LE);
 	if sol1_l && sol1_u  hit_time = sol1;
 	if sol2_l && sol2_u && sol2 < hit_time  hit_time = sol2;
-	return hit_time , exists && (0 < hit_time && hit_time <= dt);
+	do_collide  := exists && (float_compare(0, hit_time, .L) && float_compare(hit_time, dt, .LE));
+	normal : float3;
+	col_point_a : float3;
+	col_point_b : float3;
+	if do_collide
+	{
+		pa := a.translation.position + a.translation.velocity * hit_time;
+		pb := b.translation.position + b.translation.velocity * hit_time;
+		normal = normalize(pb - pa, .{});
+		col_point_a = normal * a.shape.radius;
+		col_point_b = normal * a.shape.radius * -1;
+	}
+	return hit_time , do_collide, col_point_a, col_point_b, normal;
+}
+cast_Bounding_Sphere :: (a : *PO, b : *PO, dt : float) -> (intersect_time : float, do_intersect : bool, col_point_a : float3, col_point_b : float3, normal : float3)
+{
+	combined_radius := a.bounding_sphere_radius + b.bounding_sphere_radius;
+	start_diff := a.translation.position - b.translation.position;
+	delta_diff := a.translation.velocity - b.translation.velocity;
+	t2_part :=     dot(delta_diff, delta_diff);
+	t1_part := 2 * dot(start_diff, delta_diff);
+	t0_part :=     dot(start_diff, start_diff) - combined_radius * combined_radius;
+	sol1, sol2, exists := solve_Quadratic(t2_part, t1_part, t0_part);
+	hit_time :float= dt + 1;
+	// Comparing with NaN is possible here, so we filter it out now so we can later rely on non NaN compares which are faster!
+	sol1_l := float_compare(0, sol1, .L);
+	sol1_u := float_compare(sol1, dt, .LE);
+	sol2_l := float_compare(0, sol2, .L);
+	sol2_u := float_compare(sol2, dt, .LE);
+	if sol1_l && sol1_u  hit_time = sol1;
+	if sol2_l && sol2_u && sol2 < hit_time  hit_time = sol2;
+	do_collide  := exists && (float_compare(0, hit_time, .L) && float_compare(hit_time, dt, .LE));
+	normal : float3;
+	col_point_a : float3;
+	col_point_b : float3;
+	if do_collide
+	{
+		pa := a.translation.position + a.translation.velocity * hit_time;
+		pb := b.translation.position + b.translation.velocity * hit_time;
+		normal = normalize(pb - pa, .{});
+		col_point_a = normal * a.shape.bounding_sphere.radius;
+		col_point_b = normal * a.shape.bounding_sphere.radius * -1;
+	}
+	return hit_time , do_collide, col_point_a, col_point_b, normal;
 }
 
 solve_Quadratic :: (t2 : float, t1 : float, t0 : float) -> (x1 : float, x2 : float, n_sol : bool)
@@ -368,6 +559,114 @@ point_Tet_Collision :: ( point : float3, vel : float3, tet : [4] float3, tet_pos
 
 #scope_file
 
+SHAPE_ENCODING_BITS :: #run -> s64
+{
+	#import "Bit_Operations";
+	ti := type_info(Shape_Type);
+	highest_set_bit := 0;
+	for ti.values
+	{
+		if it == xx Shape_Type.UNKOWN  continue;
+		highest_set_bit = max(highest_set_bit, bit_scan_reverse(it));
+	}
+	log("SHAPE_ENCODING_BITS :: %;", highest_set_bit);
+	return highest_set_bit;
+};
+
+all_physics_objects : struct
+{
+	n_spheres   : int;
+	n_tetraeder : int;
+	spheres    : [0xF0] Physics_Object(.SPHERE);
+	tetraeder : [0x70] Physics_Object(.TETRAEDER);
+}
+
+
+create_Sphere :: (base : Physics_Base, shape : Shape(.SPHERE)) -> Physics_ID
+{
+	if all_physics_objects.n_spheres == all_physics_objects.spheres.count  return Physics_ID_INVALID;
+	idx := all_physics_objects.n_spheres;
+	sphere := *all_physics_objects.spheres[all_physics_objects.n_spheres];
+	sphere.base = base;
+
+	all_physics_objects.n_spheres += 1;
+	return mangle_Physics_ID(.SPHERE, idx);
+}
+
+create_Tetraeder :: (base : Physics_Base, shape : Shape(.TETRAEDER)) -> Physics_ID
+{
+	if all_physics_objects.n_tetraeder == all_physics_objects.tetraeder.count  return Physics_ID_INVALID;
+	idx :=  all_physics_objects.n_tetraeder;
+	tet := *all_physics_objects.  tetraeder[all_physics_objects.n_tetraeder];
+
+	tet.base = base;
+	all_physics_objects.n_tetraeder += 1;
+	return mangle_Physics_ID(.TETRAEDER, idx);
+}
+
+
+SHAPE_BIT_SHIFT :: (size_of(Physics_ID) * 8) - SHAPE_ENCODING_BITS;
+SHAPE_MASK      :: (cast(Physics_ID) (1<<SHAPE_ENCODING_BITS) - 1);
+MIN_LEGAL_INDEX :: 1;
+MAX_LEGAL_INDEX :: (1 << (size_of(Physics_ID) * 8 - SHAPE_ENCODING_BITS)) - 1;
+
+MANGLE_CHECKS :: true;
+
+mangle_Physics_ID :: (shape_type : Shape_Type, index : int) -> Physics_ID
+{
+
+	if shape_type == .UNKOWN  return Physics_ID_INVALID;
+	shape_part : u16 = xx shape_type;
+
+	#if MANGLE_CHECKS
+	{
+		#assert all_physics_objects.spheres.count   < MAX_LEGAL_INDEX - MIN_LEGAL_INDEX;
+		#assert all_physics_objects.tetraeder.count < MAX_LEGAL_INDEX - MIN_LEGAL_INDEX;
+		assert(0 <= index && index <= MAX_LEGAL_INDEX - MIN_LEGAL_INDEX, 
+			"Index % is out of range, [%, %] are valid indices", index, 0, MAX_LEGAL_INDEX - MIN_LEGAL_INDEX);
+		if shape_type == .SPHERE    assert(index < all_physics_objects.spheres  .count, 
+			"Spheres can only have indices in range [%, %] but it was %",   0, all_physics_objects.spheres.count,   index);
+		if shape_type == .TETRAEDER assert(index < all_physics_objects.tetraeder.count, 
+			"Tetraeder can only have indices in range [%, %] but it was %", 0, all_physics_objects.tetraeder.count, index);
+
+	}
+
+	index_part    : u16 = cast(u16) index + MIN_LEGAL_INDEX;
+	return xx ((shape_part << SHAPE_BIT_SHIFT) | index_part);
+}
+
+demangle_Physics_ID :: (id : Physics_ID) -> (shape_type : Shape_Type, index : int)
+{
+	if id == Physics_ID_INVALID  return .UNKOWN, -1;
+	#if MANGLE_CHECKS
+	{
+		#run
+		{
+			ti := type_info(Shape_Type);
+			for ti.values
+			{
+				if it != xx Shape_Type.UNKOWN 
+				{
+					assert(it < (1 << SHAPE_ENCODING_BITS), "We can only encode up to %, but % has value %", (1 << SHAPE_ENCODING_BITS) - 1, ti.names[it_index], it);
+				}
+			}
+		}
+	}
+	
+	shape_type := cast(Shape_Type) (id >> SHAPE_BIT_SHIFT) & SHAPE_MASK;
+	index    : int = xx (id & ~(SHAPE_MASK << SHAPE_BIT_SHIFT)) - MIN_LEGAL_INDEX;
+
+	#if MANGLE_CHECKS
+	{
+		assert(0 <= index && index <= MAX_LEGAL_INDEX - MIN_LEGAL_INDEX, "Decoded index % which is out of range for [%,%]!", index, 0, MAX_LEGAL_INDEX - MIN_LEGAL_INDEX);
+		if shape_type == .SPHERE  assert(0 <= index && index < all_physics_objects.spheres.count, 
+			"Decoded index is %, which is out of range [0, %]!\nWhere did we get this from?", index, all_physics_objects.spheres.count - 1);
+		if shape_type == .TETRAEDER  assert(0 <= index && index < all_physics_objects.tetraeder.count, 
+			"Decoded index is %, which is out of range [0, %]!\nWhere did we get this from?", index, all_physics_objects.tetraeder.count - 1);
+	}
+
+	return shape_type, xx index;
+}
 
 
 
