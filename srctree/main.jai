@@ -85,11 +85,20 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		objects[2].mass = 1;
 }
 
+
+
 		
 		
 		for objects  log("[%] vol = %", it_index, orientation(it.tet[0], it.tet[1],it.tet[2],it.tet[3]));
 		
 		persistent_lines.count = 0;
+
+
+		reset_Entire_Physics_State();
+
+		obj1 = create_Physics_Object(Physics_Base.{translation = objects[0].translation}, TETRAEDER_DEFAULT);
+		obj2 = create_Physics_Object(Physics_Base.{translation = objects[1].translation}, TETRAEDER_DEFAULT);
+		obj3 = create_Physics_Object(Physics_Base.{translation = objects[2].translation}, TETRAEDER_DEFAULT);
 	}
 
 	objects[1].tet = .[
@@ -99,10 +108,11 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 			.{#run cos(60/180.0 * PI), .5,#run  sin( 60/180.0 * PI)},
 	];
 	objects[2].tet = objects[1].tet;
-	reset_Physics();
 
-	obj1 := create_Physics_Object(Physics_Base.{}, UNIT_SPHERE);
-	obj2 := create_Physics_Object(Physics_Base.{}, TETRAEDER);
+
+	obj1, obj2, obj3 : Physics_ID;
+
+	reset_Physics();
 	
 	log("obj1 has id %", formatID(obj1));
 	log("obj2 has id %", formatID(obj2));
@@ -220,7 +230,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 		{
 			dt :: DELTA;
-
+			tick_Physics(dt);
 
 
 			for objects  if length_Squared(it.translation.position) > 100
@@ -430,7 +440,19 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 				add_Line(draw_buffer, o.tet[1] + o.translation.position, o.tet[3] + o.translation.position, GREY);
 				add_Line(draw_buffer, o.tet[2] + o.translation.position, o.tet[3] + o.translation.position, GREY);
 			}
+			for *< Physics_Objects_Iterator(.TETRAEDER).{}
+			{
+				o := it;
+				add_Line(draw_buffer, o.shape.vertices[0] + o.translation.position, o.shape.vertices[1] + o.translation.position, RED);
+				add_Line(draw_buffer, o.shape.vertices[0] + o.translation.position, o.shape.vertices[2] + o.translation.position, RED);
+				add_Line(draw_buffer, o.shape.vertices[0] + o.translation.position, o.shape.vertices[3] + o.translation.position, RED);
+				add_Line(draw_buffer, o.shape.vertices[1] + o.translation.position, o.shape.vertices[2] + o.translation.position, RED);
+				add_Line(draw_buffer, o.shape.vertices[1] + o.translation.position, o.shape.vertices[3] + o.translation.position, RED);
+				add_Line(draw_buffer, o.shape.vertices[2] + o.translation.position, o.shape.vertices[3] + o.translation.position, RED);
+				log("Drawing Tetrader %", it_index);
+			}
 		}
+
 
 
 

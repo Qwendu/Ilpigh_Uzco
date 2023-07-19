@@ -287,7 +287,7 @@ Draw_Buffer :: struct
 	light_sources : [20] Light_Source;
 
 	n_lines : int;
-	lines   : [400] Line;
+	lines   : [8000] Line;
 
 	camera : Camera;
 };

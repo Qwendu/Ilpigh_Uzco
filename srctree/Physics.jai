@@ -17,7 +17,8 @@ formatID :: #bake_arguments formatInt(
 	base = 16, 
 	minimum_digits   = size_of(Physics_ID) * 2,
 	digits_per_comma = 0, 
-	comma_string = "_");
+	comma_string = "_"
+);
 
 
 
@@ -46,13 +47,49 @@ Shape :: struct(shape_type : Shape_Type)
 	}
 }
 
+Physics_Objects_Iterator :: struct(shape_type : Shape_Type) {};
+
+for_expansion :: (using po : $P/Physics_Objects_Iterator,  code : Code, $flags : For_Flags) #expand
+{
+	reverse    :: cast(bool) flags & .REVERSE;
+	by_pointer :: cast(bool) flags & .POINTER;
+	#assert by_pointer;
+	#if shape_type == .SPHERE
+	{
+		for * <=reverse sphere, index: physics_state.spheres
+		{
+			`it       := sphere;
+			`it_index := mangle_Physics_ID(shape_type, index);
+			 #insert code;
+		}
+	}else #if shape_type == .TETRAEDER
+	{
+		for * <=reverse tet, index : physics_state.tetraeder
+		{
+			`it       := tet;
+			`it_index := mangle_Physics_ID(shape_type, index);
+			#insert code;
+		}
+	}else{
+		assert(false, "We cant iterate over %.", o.shape_type);
+	}
+}
+
 Tetraeder :: struct
 {
 	vertices : [4] float3;
 };
+
+
 Sphere    :: struct
 {
 	radius : float ;
+}
+
+reset_Entire_Physics_State :: ()
+{
+	physics_state.spheres.count   = 0;
+	physics_state.tetraeder.count = 0;
 }
 
 
@@ -75,12 +112,12 @@ create_Physics_Object :: (base : Physics_Base, shape : $S/Shape) -> Physics_ID
 	}
 }
 
-UNIT_SPHERE :: Shape(.SPHERE).
+SPHERE_DEFAULT :: Shape(.SPHERE).
 {
 	radius = 1,
 };
 
-TETRAEDER :: Shape(.TETRAEDER).
+TETRAEDER_DEFAULT :: Shape(.TETRAEDER).
 {
 	vertices = .[
 		.{-1, .5,0},
@@ -90,6 +127,20 @@ TETRAEDER :: Shape(.TETRAEDER).
 	],
 };
 
+
+// TODO: Add allocator for Physics
+pending_collisions : [..] Pending_Collision;
+
+
+tick_Physics :: (dt : float)
+{
+	for Physics_Objects_By_ID.{}
+	{
+		shape, idx := demangle_Physics_ID(it);
+		log("obj %:%", shape, idx);
+	}
+	physics_state.time += microseconds_to_apollo(xx (dt * 1000 * 1000));
+}
 
 
 Pending_Collision :: struct
@@ -112,7 +163,7 @@ detect_Collision :: (a : Physics_ID, b : Physics_ID, dt : float) -> Pending_Coll
 	res.b = b;
 	if a_shape == .SPHERE && b_shape == .SPHERE
 	{
-		res.time, _, res.a_point, res.b_point, res.normal = cast_Bounding_Sphere(*all_physics_objects.spheres[a_index], *all_physics_objects.spheres[b_index], dt);
+		res.time, _, res.a_point, res.b_point, res.normal = cast_Bounding_Sphere(*physics_state.spheres[a_index], *physics_state.spheres[b_index], dt);
 	}else {
 		assert(false, "% - % Collision detection is not implemented!", a_shape, b_shape);
 	}
@@ -569,38 +620,44 @@ SHAPE_ENCODING_BITS :: #run -> s64
 		if it == xx Shape_Type.UNKOWN  continue;
 		highest_set_bit = max(highest_set_bit, bit_scan_reverse(it));
 	}
-	log("SHAPE_ENCODING_BITS :: %;", highest_set_bit);
 	return highest_set_bit;
 };
 
-all_physics_objects : struct
+physics_state : struct
 {
-	n_spheres   : int;
-	n_tetraeder : int;
-	spheres    : [0xF0] Physics_Object(.SPHERE);
-	tetraeder : [0x70] Physics_Object(.TETRAEDER);
+	time : Apollo_Time;
+	tetraeder : Static_Auto_Array(Physics_Object(.TETRAEDER), 100);
+	spheres   : Static_Auto_Array(Physics_Object(.SPHERE),    100);
 }
+
+
+
 
 
 create_Sphere :: (base : Physics_Base, shape : Shape(.SPHERE)) -> Physics_ID
 {
-	if all_physics_objects.n_spheres == all_physics_objects.spheres.count  return Physics_ID_INVALID;
-	idx := all_physics_objects.n_spheres;
-	sphere := *all_physics_objects.spheres[all_physics_objects.n_spheres];
-	sphere.base = base;
+	sphere, idx := array_add(*physics_state.spheres);
+	if !sphere 
+	{
+		log_error("Could not add Sphere to Physics State!");
+		return Physics_ID_INVALID;
+	}
 
-	all_physics_objects.n_spheres += 1;
+	sphere.* = .{base, shape};
+
 	return mangle_Physics_ID(.SPHERE, idx);
 }
 
 create_Tetraeder :: (base : Physics_Base, shape : Shape(.TETRAEDER)) -> Physics_ID
 {
-	if all_physics_objects.n_tetraeder == all_physics_objects.tetraeder.count  return Physics_ID_INVALID;
-	idx :=  all_physics_objects.n_tetraeder;
-	tet := *all_physics_objects.  tetraeder[all_physics_objects.n_tetraeder];
+	tet, idx := array_add(*physics_state.tetraeder);
+	if !tet
+	{
+		log_error("Could not add Tetraeder to Physics State!");
+		return Physics_ID_INVALID;
+	}
+	tet.* = .{base, shape};
 
-	tet.base = base;
-	all_physics_objects.n_tetraeder += 1;
 	return mangle_Physics_ID(.TETRAEDER, idx);
 }
 
@@ -620,14 +677,14 @@ mangle_Physics_ID :: (shape_type : Shape_Type, index : int) -> Physics_ID
 
 	#if MANGLE_CHECKS
 	{
-		#assert all_physics_objects.spheres.count   < MAX_LEGAL_INDEX - MIN_LEGAL_INDEX;
-		#assert all_physics_objects.tetraeder.count < MAX_LEGAL_INDEX - MIN_LEGAL_INDEX;
+		#assert physics_state.spheres.count   < MAX_LEGAL_INDEX - MIN_LEGAL_INDEX;
+		#assert physics_state.tetraeder.count < MAX_LEGAL_INDEX - MIN_LEGAL_INDEX;
 		assert(0 <= index && index <= MAX_LEGAL_INDEX - MIN_LEGAL_INDEX, 
 			"Index % is out of range, [%, %] are valid indices", index, 0, MAX_LEGAL_INDEX - MIN_LEGAL_INDEX);
-		if shape_type == .SPHERE    assert(index < all_physics_objects.spheres  .count, 
-			"Spheres can only have indices in range [%, %] but it was %",   0, all_physics_objects.spheres.count,   index);
-		if shape_type == .TETRAEDER assert(index < all_physics_objects.tetraeder.count, 
-			"Tetraeder can only have indices in range [%, %] but it was %", 0, all_physics_objects.tetraeder.count, index);
+		if shape_type == .SPHERE    assert(index < physics_state.spheres  .capacity, 
+			"Spheres can only have indices in range [%, %] but it was %",   0, physics_state.spheres.count,   index);
+		if shape_type == .TETRAEDER assert(index < physics_state.tetraeder.capacity, 
+			"Tetraeder can only have indices in range [%, %] but it was %", 0, physics_state.tetraeder.count, index);
 
 	}
 
@@ -659,13 +716,34 @@ demangle_Physics_ID :: (id : Physics_ID) -> (shape_type : Shape_Type, index : in
 	#if MANGLE_CHECKS
 	{
 		assert(0 <= index && index <= MAX_LEGAL_INDEX - MIN_LEGAL_INDEX, "Decoded index % which is out of range for [%,%]!", index, 0, MAX_LEGAL_INDEX - MIN_LEGAL_INDEX);
-		if shape_type == .SPHERE  assert(0 <= index && index < all_physics_objects.spheres.count, 
-			"Decoded index is %, which is out of range [0, %]!\nWhere did we get this from?", index, all_physics_objects.spheres.count - 1);
-		if shape_type == .TETRAEDER  assert(0 <= index && index < all_physics_objects.tetraeder.count, 
-			"Decoded index is %, which is out of range [0, %]!\nWhere did we get this from?", index, all_physics_objects.tetraeder.count - 1);
+		if shape_type == .SPHERE  assert(0 <= index && index < physics_state.spheres.capacity, 
+			"Decoded index is %, which is out of range [0, %]!\nWhere did we get this from?", index, physics_state.spheres.count - 1);
+		if shape_type == .TETRAEDER  assert(0 <= index && index < physics_state.tetraeder.capacity, 
+			"Decoded index is %, which is out of range [0, %]!\nWhere did we get this from?", index, physics_state.tetraeder.count - 1);
 	}
 
 	return shape_type, xx index;
+}
+
+Physics_Objects_By_ID :: struct {};
+
+for_expansion :: (p : Physics_Objects_By_ID, code : Code, flags : For_Flags) #expand
+{
+	`it       : Physics_ID;
+	`it_index : int;
+
+	for _, index : physics_state.spheres
+	{
+		it = mangle_Physics_ID(.SPHERE, index);
+		#insert code;
+		it_index += 1;
+	}
+	for _, index : physics_state.tetraeder
+	{
+		it = mangle_Physics_ID(.TETRAEDER, index);
+		#insert code;
+		it_index += 1;
+	}
 }
 
 
@@ -674,3 +752,4 @@ demangle_Physics_ID :: (id : Physics_ID) -> (shape_type : Shape_Type, index : in
 #import "Vector";
 #import "Math";
 #import "Basic";
+#import "Static_Auto_Array";
