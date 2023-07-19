@@ -20,4 +20,11 @@
 	- [ ] Primitives
 		- [ ] Spheres
 		- [ ] Tetraeder
+- [ ] Succeeding to Fail
+	- [ ] On Error Create Save File feature
+		- [ ] state from X seconds before crash, dumped to file
+	- [ ] Load Save file feature
+	- [ ] Windows Error Reporting
+	- [ ] Mail Dialog for Crashes in Release
+	- [ ] Recovery Mode for Release which records extra data for crash dumps 
 			

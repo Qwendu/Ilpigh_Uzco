@@ -13,7 +13,6 @@ persistent_lines : [..] struct { start : float3; end : float3;};
 
 
 
-PHYSICS_FREQUENCY :: 10;
 
 #program_export
 game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
@@ -229,8 +228,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		//
 
 		{
-			dt :: DELTA;
-			tick_Physics(dt);
+			tick_Physics(30);
 
 
 			for objects  if length_Squared(it.translation.position) > 100

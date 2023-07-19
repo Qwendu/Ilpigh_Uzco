@@ -1,5 +1,11 @@
 #scope_export
 
+PHYSICS_FREQUENCY :: 10;
+dt :: 1.0/PHYSICS_FREQUENCY;
+
+
+#load "Physics/old.jai";
+
 
 Physics_ID :: #type,distinct u16;
 Physics_ID_INVALID : Physics_ID : cast,no_check(Physics_ID) 0;
@@ -97,6 +103,7 @@ reset_Entire_Physics_State :: ()
 
 create_Physics_Object :: (base : Physics_Base, shape : $S/Shape) -> Physics_ID
 {
+	log("Creating object with base %", base);
 	#if shape.shape_type == .SPHERE
 	{
 		id := create_Sphere(base, shape);
@@ -134,12 +141,64 @@ pending_collisions : [..] Pending_Collision;
 
 tick_Physics :: (dt : float)
 {
-	for Physics_Objects_By_ID.{}
+	maybe_collision : Pending_Collision = ---;
+	resolved_up_to_time : float = 0;
+
+	defer  pending_collisions.count = 0;
+
+	for first : 0..physics_state.spheres.count-1
 	{
-		shape, idx := demangle_Physics_ID(it);
-		log("obj %:%", shape, idx);
+		first_id := mangle_Physics_ID(.SPHERE, first);
+		first_sphere := *physics_state.spheres[first];
+		maybe_collision.a = first_id;
+
+		for second : first+1..physics_state.spheres.count-1
+		{
+			second_id := mangle_Physics_ID(.SPHERE, second);
+			second_sphere := *physics_state.spheres[second];
+			maybe_collision.b = second_id;
+			maybe_collision.time, collision :, maybe_collision.a_point, maybe_collision.b_point, maybe_collision.normal = cast_Bounding_Sphere(first_sphere, second_sphere, dt);
+			if collision
+			{
+				array_add(*pending_collisions, maybe_collision);
+			}
+		}
+		for second : first+1..physics_state.tetraeder.count-1
+		{
+			second_id := mangle_Physics_ID(.TETRAEDER, second);
+			second_tetraeder := *physics_state.tetraeder[second];
+			maybe_collision.b = second_id;
+			maybe_collision.time, collision :, maybe_collision.a_point, maybe_collision.b_point, maybe_collision.normal = cast_Bounding_Sphere_Tetraeder(first_sphere, second_tetraeder, dt);
+			if collision
+			{
+				array_add(*pending_collisions, maybe_collision);
+			}
+		}
 	}
+
+	for first : 0..physics_state.tetraeder.count-1
+	{
+		first_id := mangle_Physics_ID(.TETRAEDER, first);
+		first_tetraeder := *physics_state.tetraeder[first];
+		maybe_collision.a = first_id;
+
+		for second : first+1..physics_state.tetraeder.count-1
+		{
+			second_id := mangle_Physics_ID(.TETRAEDER, second);
+			second_tetraeder := *physics_state.tetraeder[second];
+			maybe_collision.b = second_id;
+			maybe_collision.time, collision :, maybe_collision.a_point, maybe_collision.b_point, maybe_collision.normal = cast_Tetraeder(first_tetraeder, second_tetraeder, dt);
+			if collision
+			{
+				array_add(*pending_collisions, maybe_collision);
+			}
+		}
+	}
+
+
+
 	physics_state.time += microseconds_to_apollo(xx (dt * 1000 * 1000));
+	log_error("% Unresolved Collisions", pending_collisions.count);
 }
 
 
@@ -226,8 +285,7 @@ Collision_Shape :: struct
 
 
 
-
-cast_Tetraeder :: (a : *PO, b : *PO, dt : float) -> (time: float, collision: bool, point_local_to_a: float3, point_local_to_b: float3, normal : float3)
+cast_Tetraeder :: (a : *Physics_Object(.TETRAEDER), b : *Physics_Object(.TETRAEDER), dt : float) -> (time: float, collision: bool, point_local_to_a: float3, point_local_to_b: float3, normal : float3)
 {
 	//@incomplete
 	// We do not yet respect rotations in 3D space, although we could
@@ -253,17 +311,17 @@ cast_Tetraeder :: (a : *PO, b : *PO, dt : float) -> (time: float, collision: boo
 		}
 	}
 	{
-		test_Point_Tet(b.tet[0] + b.translation.position, a.tet, a.translation.position, *collision_point_b, *collision_point_a, false);
-		test_Point_Tet(b.tet[1] + b.translation.position, a.tet, a.translation.position, *collision_point_b, *collision_point_a, false);
-		test_Point_Tet(b.tet[2] + b.translation.position, a.tet, a.translation.position, *collision_point_b, *collision_point_a, false);
-		test_Point_Tet(b.tet[3] + b.translation.position, a.tet, a.translation.position, *collision_point_b, *collision_point_a, false);
+		test_Point_Tet(b.shape.vertices[0] + b.translation.position, a.shape.vertices, a.translation.position, *collision_point_b, *collision_point_a, false);
+		test_Point_Tet(b.shape.vertices[1] + b.translation.position, a.shape.vertices, a.translation.position, *collision_point_b, *collision_point_a, false);
+		test_Point_Tet(b.shape.vertices[2] + b.translation.position, a.shape.vertices, a.translation.position, *collision_point_b, *collision_point_a, false);
+		test_Point_Tet(b.shape.vertices[3] + b.translation.position, a.shape.vertices, a.translation.position, *collision_point_b, *collision_point_a, false);
 	}
 	{
 		// Invert normal when it comes from the b side! @@Direction_Used_For_Plastic_Collision
-		test_Point_Tet(a.tet[0] + a.translation.position, b.tet, b.translation.position, *collision_point_a, *collision_point_b, true);
-		test_Point_Tet(a.tet[1] + a.translation.position, b.tet, b.translation.position, *collision_point_a, *collision_point_b, true);
-		test_Point_Tet(a.tet[2] + a.translation.position, b.tet, b.translation.position, *collision_point_a, *collision_point_b, true);
-		test_Point_Tet(a.tet[3] + a.translation.position, b.tet, b.translation.position, *collision_point_a, *collision_point_b, true);
+		test_Point_Tet(a.shape.vertices[0] + a.translation.position, b.shape.vertices, b.translation.position, *collision_point_a, *collision_point_b, true);
+		test_Point_Tet(a.shape.vertices[1] + a.translation.position, b.shape.vertices, b.translation.position, *collision_point_a, *collision_point_b, true);
+		test_Point_Tet(a.shape.vertices[2] + a.translation.position, b.shape.vertices, b.translation.position, *collision_point_a, *collision_point_b, true);
+		test_Point_Tet(a.shape.vertices[3] + a.translation.position, b.shape.vertices, b.translation.position, *collision_point_a, *collision_point_b, true);
 	}
 
 	line_line_collision_is_earliest : bool = false;
@@ -274,11 +332,11 @@ cast_Tetraeder :: (a : *PO, b : *PO, dt : float) -> (time: float, collision: boo
 		for b_line : lines_indices
 		{
 			Other_Delta := b.translation.position - a.translation.position;
-			A := a.tet[a_line.a];
-			B := a.tet[a_line.b];
+			A := a.shape.vertices[a_line.a];
+			B := a.shape.vertices[a_line.b];
 
-			C := b.tet[b_line.a];
-			D := b.tet[b_line.b];
+			C := b.shape.vertices[b_line.a];
+			D := b.shape.vertices[b_line.b];
 			time, collision, ab_point_delta, cd_point_delta := line_Collision(relative_velocity,A,B,C + Other_Delta,D + Other_Delta, dt);
 			ab_point := A + ab_point_delta;
 			cd_point := C + cd_point_delta;
@@ -298,6 +356,8 @@ cast_Tetraeder :: (a : *PO, b : *PO, dt : float) -> (time: float, collision: boo
 
 	return collision_time, float_compare(0, collision_time, .LE) && float_compare(collision_time, dt, .LE), collision_point_a, collision_point_b, collision_normal;
 }
+
+
 
 orientation :: (v0 : float3, v1 : float3, v2 : float3, v3 : float3) -> float
 {
@@ -338,36 +398,11 @@ cast_Bounding_Sphere :: (a : *Physics_Object(.SPHERE), b : *Physics_Object(.SPHE
 	}
 	return hit_time , do_collide, col_point_a, col_point_b, normal;
 }
-cast_Bounding_Sphere :: (a : *PO, b : *PO, dt : float) -> (intersect_time : float, do_intersect : bool, col_point_a : float3, col_point_b : float3, normal : float3)
+
+
+cast_Bounding_Sphere_Tetraeder :: (sphere : *Physics_Object(.SPHERE), tetraeder : *Physics_Object(.TETRAEDER), dt : float) -> (intersect_time : float, do_intersect : bool, col_point_a : float3, col_point_b : float3, normal : float3)
 {
-	combined_radius := a.bounding_sphere_radius + b.bounding_sphere_radius;
-	start_diff := a.translation.position - b.translation.position;
-	delta_diff := a.translation.velocity - b.translation.velocity;
-	t2_part :=     dot(delta_diff, delta_diff);
-	t1_part := 2 * dot(start_diff, delta_diff);
-	t0_part :=     dot(start_diff, start_diff) - combined_radius * combined_radius;
-	sol1, sol2, exists := solve_Quadratic(t2_part, t1_part, t0_part);
-	hit_time :float= dt + 1;
-	// Comparing with NaN is possible here, so we filter it out now so we can later rely on non NaN compares which are faster!
-	sol1_l := float_compare(0, sol1, .L);
-	sol1_u := float_compare(sol1, dt, .LE);
-	sol2_l := float_compare(0, sol2, .L);
-	sol2_u := float_compare(sol2, dt, .LE);
-	if sol1_l && sol1_u  hit_time = sol1;
-	if sol2_l && sol2_u && sol2 < hit_time  hit_time = sol2;
-	do_collide  := exists && (float_compare(0, hit_time, .L) && float_compare(hit_time, dt, .LE));
-	normal : float3;
-	col_point_a : float3;
-	col_point_b : float3;
-	if do_collide
-	{
-		pa := a.translation.position + a.translation.velocity * hit_time;
-		pb := b.translation.position + b.translation.velocity * hit_time;
-		normal = normalize(pb - pa, .{});
-		col_point_a = normal * a.shape.bounding_sphere.radius;
-		col_point_b = normal * a.shape.bounding_sphere.radius * -1;
-	}
-	return hit_time , do_collide, col_point_a, col_point_b, normal;
+	return -1, false, .{}, .{}, .{};
 }
 
 solve_Quadratic :: (t2 : float, t1 : float, t0 : float) -> (x1 : float, x2 : float, n_sol : bool)
@@ -505,110 +540,7 @@ dot(C-A, n_abv) * dot(D-A, n_abv) < 0
 
 
 
-#scope_file
-
-
-
-
-
-point_Tet_Collision :: ( point : float3, vel : float3, tet : [4] float3, tet_position : float3, dt : float) -> (float, bool, point_on_tet: float3, normal : float3)
-{
-	side_Collision :: (rel : float3, vel : float3, a : float3, b : float3, c : float3) -> float, normal : float3
-	{
-		normal := cross(b - a, c - a);
-		return -dot(rel, normal)/dot(vel, normal), normal;
-	}
-	point_rel := point - tet_position;
-	// All sides by indices in correct order
-	// 012
-	// 132
-	// 310
-	// 302
-
-	earliest_collision : float3;
-	earliest_collision_normal : float3;
-	earliest_collision_time : float = dt + 1;
-	s0, s0_norm := side_Collision(point_rel - tet[0], vel, tet[0], tet[1], tet[2]);
-	if float_compare(0, s0, .LE) && float_compare(s0, dt, .LE)
-	{
-		col_point_tet := point_rel + vel * s0;
-		s0_1 := orientation(tet[1], tet[3], tet[2], col_point_tet);
-		s0_2 := orientation(tet[3], tet[1], tet[0], col_point_tet);
-		s0_3 := orientation(tet[3], tet[0], tet[2], col_point_tet);
-		if float_compare(s0_1, 0, .GE) && float_compare(s0_2, 0, .GE) && float_compare(s0_3, 0, .GE)
-		{
-			if earliest_collision_time > s0
-			{
-				earliest_collision = col_point_tet;
-				earliest_collision_normal = s0_norm;
-				earliest_collision_time = s0;
-			}
-		}
-	}
-
-	s1, s1_norm := side_Collision(point_rel - tet[1], vel, tet[1], tet[3], tet[2]);
-	if float_compare(0, s1, .LE) && float_compare(s1, dt, .LE)
-	{
-		col_point_tet := point_rel + vel * s1;
-		s1_1 := orientation(tet[0], tet[1], tet[2], col_point_tet);
-		s1_2 := orientation(tet[3], tet[1], tet[0], col_point_tet);
-		s1_3 := orientation(tet[3], tet[0], tet[2], col_point_tet);
-
-		if float_compare(s1_1, 0, .GE) && float_compare(s1_2, 0, .GE) && float_compare(s1_3, 0, .GE)
-		{
-			if earliest_collision_time > s1
-			{
-				earliest_collision = col_point_tet;
-				earliest_collision_normal = s1_norm;
-				earliest_collision_time = s1;
-			}
-		}
-	}
-
-
-	s2, s2_norm := side_Collision(point_rel - tet[2], vel, tet[3], tet[1], tet[0]);
-	if float_compare(0, s2, .LE) && float_compare(s2, dt, .LE)
-	{
-		col_point_tet := point_rel + vel * s2;
-		s2_1 := orientation(tet[0], tet[1], tet[2], col_point_tet);
-		s2_2 := orientation(tet[1], tet[3], tet[2], col_point_tet);
-		s2_3 := orientation(tet[3], tet[0], tet[2], col_point_tet);
-
-		if float_compare(s2_1, 0, .GE) && float_compare(s2_2, 0, .GE) && float_compare(s2_3, 0, .GE)
-		{
-			if earliest_collision_time > s2
-			{
-				earliest_collision = col_point_tet;
-				earliest_collision_normal = s2_norm;
-				earliest_collision_time = s2;
-			}
-		}
-	}
-
-	s3, s3_norm := side_Collision(point_rel - tet[3], vel, tet[3], tet[0], tet[2]);
-	if float_compare(0, s3, .LE) && float_compare(s3, dt, .LE)
-	{
-		col_point_tet := point_rel + vel * s3;
-		s3_1 := orientation(tet[0], tet[1], tet[2], col_point_tet);
-		s3_2 := orientation(tet[1], tet[3], tet[2], col_point_tet);
-		s3_3 := orientation(tet[3], tet[1], tet[0], col_point_tet);
-
-		if float_compare(s3_1, 0, .GE) && float_compare(s3_2, 0, .GE) && float_compare(s3_3, 0, .GE)
-		{
-			if earliest_collision_time > s3
-			{
-				earliest_collision = col_point_tet;
-				earliest_collision_normal = s3_norm;
-				earliest_collision_time = s3;
-			}
-		}
-	}
-
-	return earliest_collision_time, float_compare(0, earliest_collision_time, .LE) && float_compare(earliest_collision_time, dt, .LE), earliest_collision, earliest_collision_normal;
-}
-
-
-#scope_file
+#scope_module
 
 SHAPE_ENCODING_BITS :: #run -> s64
 {
@@ -725,13 +657,13 @@ demangle_Physics_ID :: (id : Physics_ID) -> (shape_type : Shape_Type, index : in
 	return shape_type, xx index;
 }
 
-Physics_Objects_By_ID :: struct {};
+Physics_Objects_By_ID :: struct {start : Physics_ID;};
 
 for_expansion :: (p : Physics_Objects_By_ID, code : Code, flags : For_Flags) #expand
 {
 	`it       : Physics_ID;
 	`it_index : int;
-
+	
 	for _, index : physics_state.spheres
 	{
 		it = mangle_Physics_ID(.SPHERE, index);
@@ -748,8 +680,14 @@ for_expansion :: (p : Physics_Objects_By_ID, code : Code, flags : For_Flags) #ex
 
 
 
+
+#load "Physics/Error_Reporting.jai";
+
+
+
 #import "IUMath";
 #import "Vector";
 #import "Math";
 #import "Basic";
 #import "Static_Auto_Array";
+#import "Ring_Buffer";
