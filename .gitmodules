@@ -1,0 +1,3 @@
+[submodule "srctree/modules/Jerialize"]
+	path = srctree/modules/Jerialize
+	url = https://github.com/Qwendu/Jerialize.git
