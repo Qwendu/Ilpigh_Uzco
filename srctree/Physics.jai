@@ -163,7 +163,7 @@ tick_Physics :: (dt : float)
 				array_add(*pending_collisions, maybe_collision);
 			}
 		}
-		for second : first+1..physics_state.tetraeder.count-1
+		for second : 0..physics_state.tetraeder.count-1
 		{
 			second_id := mangle_Physics_ID(.TETRAEDER, second);
 			second_tetraeder := *physics_state.tetraeder[second];
