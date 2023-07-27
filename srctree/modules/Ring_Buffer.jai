@@ -22,7 +22,7 @@ append :: (using ring : *$Ring/Ring_Buffer, el : Ring.type)
 	{
 		if next_index(writer) == reader
 		{
-			reader += 1;
+			reader = next_index(reader);
 		}
 	}else{
 		if next_index(writer) == reader
