@@ -3,6 +3,7 @@
 ######################
 .build
 binaries
+crash_*/
 
 ######################
 ##  JAI
@@ -51,5 +52,8 @@ profiling/**/*.db
 ##  Tracy
 ######################
 profiling/**/*.tracy
+
+
+
 
 

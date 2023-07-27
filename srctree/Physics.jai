@@ -141,6 +141,9 @@ pending_collisions : [..] Pending_Collision;
 
 tick_Physics :: (dt : float)
 {
+	log("Resolving for:");
+	log("\tSpheres   %", physics_state.spheres.count);
+	log("\tTetraeder %", physics_state.tetraeder.count);
 	maybe_collision : Pending_Collision = ---;
 	resolved_up_to_time : float = 0;
 
@@ -198,7 +201,8 @@ tick_Physics :: (dt : float)
 
 
 	physics_state.time += microseconds_to_apollo(xx (dt * 1000 * 1000));
-	log_error("% Unresolved Collisions", pending_collisions.count);
+	log_error("% Unresolved Collisions at time %", pending_collisions.count, to_milliseconds(physics_state.time));
+	append_State();
 }
 
 

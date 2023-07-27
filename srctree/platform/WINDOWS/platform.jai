@@ -349,8 +349,63 @@ allocate_Large_Page :: (size: int) -> (memory_start : *void) #c_call
 	return addr;
 }
 
+ExceptionRecord :: struct {};
+ContextRecord   :: struct {};
+Exception_Pointers     :: struct
+{
+	exception_record : *ExceptionRecord;
+	context\ _record : *ContextRecord;
+}
+
+register_Diagnostic :: (diag : Diagnostic_Function)  #c_call
+{
+	array_add_c_call(*functions_to_call_if_crash_occurs, diag);
+}
+
+register_Crash_Handler :: ()
+{
+	#if true
+	{
+		old_exception_handler_to_call_after_our_processing_is_done = SetUnhandledExceptionFilter(crash_Handler);
+		log("Registered crash handler");
+	}
+}
 
 
+functions_to_call_if_crash_occurs : Static_Auto_Array(Diagnostic_Function, 4) = .{};
+old_exception_handler_to_call_after_our_processing_is_done :type_of(crash_Handler) = null;
+handling_a_crash_right_now := false;
+crash_Handler :: (ptr : *EXCEPTION_POINTERS) -> s32 #c_call
+{
+	if !handling_a_crash_right_now
+	{
+		handling_a_crash_right_now = true;
+		log_file_builder : String_Builder;
+		ctx : Context = create_Diagnostic_Context("WINDOWS", *log_file_builder);
+		push_context,defer_pop ctx;
+		
+		path_of_crash_dump := sprint("./crash_%/", to_milliseconds(current_time_monotonic()));
+		if make_directory_if_it_does_not_exist(path_of_crash_dump)
+		{
+			
+			for functions_to_call_if_crash_occurs
+			{
+				if it  
+				{
+					file_builder : String_Builder;
+					file_name:= it(*log_file_builder, *file_builder);
+					write_entire_file(sprint("%/%", path_of_crash_dump, file_name), *file_builder);
+				}
+			}
+			write_entire_file(sprint("%/log.txt", path_of_crash_dump), *log_file_builder);
+		}
+	}
+	if old_exception_handler_to_call_after_our_processing_is_done 
+	{
+		return old_exception_handler_to_call_after_our_processing_is_done(ptr);
+	}
+	return 0x01;
+}
 
 
 
@@ -715,3 +770,6 @@ WM_ACTIVATE :: 0x0006;
 #import "Mutex";
 #import "Memory";
 #import "IUMath";
+#import "Static_Auto_Array";
+#import "Diagnostic";
+#import "File";

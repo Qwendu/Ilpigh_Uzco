@@ -41,6 +41,7 @@ Input :: struct
 	mouse : Mouse;
 };
 
+Diagnostic_Function :: #type (log_file : *String_Builder, dump_file : *String_Builder) -> string #c_call;
 
 Platform :: struct 
 {
@@ -55,6 +56,7 @@ Platform :: struct
 	get_Input      : (Window) -> Input #c_call;
 	sleep          : (int) #c_call;
 	allocate_Large : (int) -> (*void) #c_call;
+	register_Diagnostic : (Diagnostic_Function) -> void #c_call;
 };
 
 Button_Code :: enum

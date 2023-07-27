@@ -3,8 +3,11 @@ main :: ()
 {
 	Profiler.NameThread(#procedure_name());
 	Profiler.AppInfo(Config.Profiler_Info);
+
 	STARTUP_TIME = current_time_monotonic();
 	context.logger = logger;
+
+	register_Crash_Handler();
 
 	platform_context : Platform;
 	{
@@ -18,6 +21,7 @@ main :: ()
 		platform_context.window = xx create_Window("Ilpigh Uzco", .{800, 600});
 		platform_context.allocate_Large = allocate_Large_Page;
 		platform_context.sleep = sleep;
+		platform_context.register_Diagnostic = register_Diagnostic;
 	}
 
 	game := load_Game_Code(Config.Game_DLL_Name);

@@ -63,7 +63,7 @@ read :: (using ring : *$Ring/Ring_Buffer) -> Ring.type
 
 #scope_file
 
-next_index :: (n : int) #expand
+next_index :: (n : int) -> int #expand
 {
 	return (n + 1) % `capacity;
 }

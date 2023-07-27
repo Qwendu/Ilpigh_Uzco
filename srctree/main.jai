@@ -1,7 +1,5 @@
 #import "Common";
 
-
-
 #add_context STARTUP_TIME : Apollo_Time;
 
 
@@ -25,12 +23,16 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	c.allocator = platform.general_heap;
 	c.logger = logger;
 
+
+
 	push_context,defer_pop c;
 
 	
 	draw_thread_exit : int = 0;
 	args := Draw_Args.{exit = *draw_thread_exit, plt = platform, c = *context};
 	platform.start_Thread(xx draw, *args);
+	platform.register_Diagnostic(diagnostics_For_Physics);
+	
 
 	while atomic_volatile_read(*args.output) == null
 	{
@@ -447,7 +449,6 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 				add_Line(draw_buffer, o.shape.vertices[1] + o.translation.position, o.shape.vertices[2] + o.translation.position, RED);
 				add_Line(draw_buffer, o.shape.vertices[1] + o.translation.position, o.shape.vertices[3] + o.translation.position, RED);
 				add_Line(draw_buffer, o.shape.vertices[2] + o.translation.position, o.shape.vertices[3] + o.translation.position, RED);
-				log("Drawing Tetrader %", it_index);
 			}
 		}
 
