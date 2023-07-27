@@ -19,6 +19,16 @@ array_add :: (using arr : *$Arr/Static_Auto_Array, el : Arr.type)
 	count += 1;
 }
 
+array_add_c_call :: (using arr : *$Arr/Static_Auto_Array, el : Arr.type) #c_call
+{
+	if count >= Arr.capacity
+	{
+		return;
+	}
+	data[count] = el;
+	count += 1;
+}
+
 array_add :: (using arr : *$Arr/Static_Auto_Array) -> *Arr.type, int
 {
 	if count >= Arr.capacity
