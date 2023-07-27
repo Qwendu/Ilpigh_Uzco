@@ -32,6 +32,7 @@ Input :: struct
 	};
 
 	key_states : [N_BUTTONS] Key_State;
+	last_retrieval_time : Apollo_Time;
 
 	Mouse :: struct
 	{
@@ -57,6 +58,7 @@ Platform :: struct
 	sleep          : (int) #c_call;
 	allocate_Large : (int) -> (*void) #c_call;
 	register_Diagnostic : (Diagnostic_Function) -> void #c_call;
+	dump           : () -> void #c_call;
 };
 
 Button_Code :: enum
@@ -89,6 +91,18 @@ Button_Code :: enum
 	Z;
 	MOUSE_LEFT;
 	MOUSE_RIGHT;
+	F1;
+	F2;
+	F3;
+	F4;
+	F5;
+	F6;
+	F7;
+	F8;
+	F9;
+	F10;
+	F11;
+	F12;
 	// @Incomplete
 };	
 
@@ -100,6 +114,11 @@ is_Button_Pressed :: (input : *Input, button : Button_Code) -> bool
 	// TODO
 	state := input.key_states[button];
 	return state.start_pressed > state.stop_pressed;
+}
+
+was_Button_Just_Pressed :: (input : *Input, button : Button_Code) -> bool
+{
+	return input.key_states[button].start_pressed >= input.last_retrieval_time;
 }
 
 

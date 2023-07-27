@@ -321,10 +321,16 @@ get_Input :: (window : Window) -> Input #c_call
 	push_context,defer_pop win.window_context;
 	in := acquire(*win.input);
 	res := in.*;
+
 	in.mouse.delta = .{};
+	in.last_retrieval_time = current_time_monotonic();
+
 	release(*win.input);
 	return res;
 }
+
+// TODO: peek_Input :: (window : Window) -> Input #c_call { // non destructively get most up to date input}
+
 
 
 allocate_Large_Page :: (size: int) -> (memory_start : *void) #c_call
@@ -375,30 +381,39 @@ register_Crash_Handler :: ()
 functions_to_call_if_crash_occurs : Static_Auto_Array(Diagnostic_Function, 4) = .{};
 old_exception_handler_to_call_after_our_processing_is_done :type_of(crash_Handler) = null;
 handling_a_crash_right_now := false;
+
+
+dump :: () #c_call
+{
+	log_file_builder : String_Builder;
+	ctx : Context = create_Diagnostic_Context("WINDOWS", *log_file_builder);
+	push_context,defer_pop ctx;
+	
+	path_of_crash_dump := sprint("./dump_%/", to_milliseconds(current_time_monotonic()));
+	if make_directory_if_it_does_not_exist(path_of_crash_dump)
+	{
+		
+		for functions_to_call_if_crash_occurs
+		{
+			if it  
+			{
+				file_builder : String_Builder;
+				file_name:= it(*log_file_builder, *file_builder);
+				write_entire_file(sprint("%/%", path_of_crash_dump, file_name), *file_builder);
+			}
+		}
+		write_entire_file(sprint("%/log.txt", path_of_crash_dump), *log_file_builder);
+	}
+	context.allocator.proc(.SHUTDOWN, 0, 0,null,null);
+}
+
+
 crash_Handler :: (ptr : *EXCEPTION_POINTERS) -> s32 #c_call
 {
 	if !handling_a_crash_right_now
 	{
 		handling_a_crash_right_now = true;
-		log_file_builder : String_Builder;
-		ctx : Context = create_Diagnostic_Context("WINDOWS", *log_file_builder);
-		push_context,defer_pop ctx;
-		
-		path_of_crash_dump := sprint("./crash_%/", to_milliseconds(current_time_monotonic()));
-		if make_directory_if_it_does_not_exist(path_of_crash_dump)
-		{
-			
-			for functions_to_call_if_crash_occurs
-			{
-				if it  
-				{
-					file_builder : String_Builder;
-					file_name:= it(*log_file_builder, *file_builder);
-					write_entire_file(sprint("%/%", path_of_crash_dump, file_name), *file_builder);
-				}
-			}
-			write_entire_file(sprint("%/log.txt", path_of_crash_dump), *log_file_builder);
-		}
+		dump();
 	}
 	if old_exception_handler_to_call_after_our_processing_is_done 
 	{
@@ -562,38 +577,57 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 			in := acquire(*window_info.input);
 			using in;
 			now := current_time_monotonic();
-			if wparam == 
+			check_And_Set_Pressed :: (windows_code : int, code : Button_Code) #expand
 			{
-				case #char "A"; key_states[Button_Code.A].start_pressed = now;
-				case #char "B"; key_states[Button_Code.B].start_pressed = now;
-				case #char "C"; key_states[Button_Code.C].start_pressed = now;
-				case #char "D"; key_states[Button_Code.D].start_pressed = now;
-				case #char "E"; key_states[Button_Code.E].start_pressed = now;
-				case #char "F"; key_states[Button_Code.F].start_pressed = now;
-				case #char "G"; key_states[Button_Code.G].start_pressed = now;
-				case #char "H"; key_states[Button_Code.H].start_pressed = now;
-				case #char "I"; key_states[Button_Code.I].start_pressed = now;
-				case #char "J"; key_states[Button_Code.J].start_pressed = now;
-				case #char "K"; key_states[Button_Code.K].start_pressed = now;
-				case #char "L"; key_states[Button_Code.L].start_pressed = now;
-				case #char "M"; key_states[Button_Code.M].start_pressed = now;
-				case #char "N"; key_states[Button_Code.N].start_pressed = now;
-				case #char "O"; key_states[Button_Code.O].start_pressed = now;
-				case #char "P"; key_states[Button_Code.P].start_pressed = now;
-				case #char "Q"; key_states[Button_Code.Q].start_pressed = now;
-				case #char "R"; key_states[Button_Code.R].start_pressed = now;
-				case #char "S"; key_states[Button_Code.S].start_pressed = now;
-				case #char "T"; key_states[Button_Code.T].start_pressed = now;
-				case #char "U"; key_states[Button_Code.U].start_pressed = now;
-				case #char "V"; key_states[Button_Code.V].start_pressed = now;
-				case #char "W"; key_states[Button_Code.W].start_pressed = now;
-				case #char "X"; key_states[Button_Code.X].start_pressed = now;
-				case #char "Y"; key_states[Button_Code.Y].start_pressed = now;
-				case #char "Z"; key_states[Button_Code.Z].start_pressed = now;
+				if wparam == windows_code && key_states[code].start_pressed < key_states[code].stop_pressed
+				{
+					key_states[code].start_pressed = now;
+				}
+			}
+			// TODO: Refactor this to a lookup
+			check_And_Set_Pressed(#char "A", Button_Code.A);
+			check_And_Set_Pressed(#char "B", Button_Code.B);
+			check_And_Set_Pressed(#char "C", Button_Code.C);
+			check_And_Set_Pressed(#char "D", Button_Code.D);
+			check_And_Set_Pressed(#char "E", Button_Code.E);
+			check_And_Set_Pressed(#char "F", Button_Code.F);
+			check_And_Set_Pressed(#char "G", Button_Code.G);
+			check_And_Set_Pressed(#char "H", Button_Code.H);
+			check_And_Set_Pressed(#char "I", Button_Code.I);
+			check_And_Set_Pressed(#char "J", Button_Code.J);
+			check_And_Set_Pressed(#char "K", Button_Code.K);
+			check_And_Set_Pressed(#char "L", Button_Code.L);
+			check_And_Set_Pressed(#char "M", Button_Code.M);
+			check_And_Set_Pressed(#char "N", Button_Code.N);
+			check_And_Set_Pressed(#char "O", Button_Code.O);
+			check_And_Set_Pressed(#char "P", Button_Code.P);
+			check_And_Set_Pressed(#char "Q", Button_Code.Q);
+			check_And_Set_Pressed(#char "R", Button_Code.R);
+			check_And_Set_Pressed(#char "S", Button_Code.S);
+			check_And_Set_Pressed(#char "T", Button_Code.T);
+			check_And_Set_Pressed(#char "U", Button_Code.U);
+			check_And_Set_Pressed(#char "V", Button_Code.V);
+			check_And_Set_Pressed(#char "W", Button_Code.W);
+			check_And_Set_Pressed(#char "X", Button_Code.X);
+			check_And_Set_Pressed(#char "Y", Button_Code.Y);
+			check_And_Set_Pressed(#char "Z", Button_Code.Z);
 
-				case VK_LBUTTON; key_states[Button_Code.MOUSE_LEFT ].start_pressed = now;
-				case VK_RBUTTON; key_states[Button_Code.MOUSE_RIGHT].start_pressed = now;
-			};
+			check_And_Set_Pressed(VK_LBUTTON, Button_Code.MOUSE_LEFT);
+			check_And_Set_Pressed(VK_RBUTTON, Button_Code.MOUSE_RIGHT);
+			check_And_Set_Pressed(VK_F1, Button_Code.F1);
+			check_And_Set_Pressed(VK_F2, Button_Code.F2);
+			check_And_Set_Pressed(VK_F3, Button_Code.F3);
+			check_And_Set_Pressed(VK_F4, Button_Code.F4);
+			check_And_Set_Pressed(VK_F5, Button_Code.F5);
+			check_And_Set_Pressed(VK_F6, Button_Code.F6);
+			check_And_Set_Pressed(VK_F7, Button_Code.F7);
+			check_And_Set_Pressed(VK_F8, Button_Code.F8);
+			check_And_Set_Pressed(VK_F9, Button_Code.F9);
+			check_And_Set_Pressed(VK_F10, Button_Code.F10);
+			check_And_Set_Pressed(VK_F11, Button_Code.F11);
+			check_And_Set_Pressed(VK_F12, Button_Code.F12);
+
+
 			result = 0;
 			release(*window_info.input);
 		case WM_KEYUP;
@@ -631,6 +665,18 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 
 				case VK_LBUTTON; key_states[Button_Code.MOUSE_LEFT ].stop_pressed = now;
 				case VK_RBUTTON; key_states[Button_Code.MOUSE_RIGHT].stop_pressed = now;
+				case VK_F1;  key_states[Button_Code.F1] .stop_pressed = now;
+				case VK_F2;  key_states[Button_Code.F2] .stop_pressed = now;
+				case VK_F3;  key_states[Button_Code.F3] .stop_pressed = now;
+				case VK_F4;  key_states[Button_Code.F4] .stop_pressed = now;
+				case VK_F5;  key_states[Button_Code.F5] .stop_pressed = now;
+				case VK_F6;  key_states[Button_Code.F6] .stop_pressed = now;
+				case VK_F7;  key_states[Button_Code.F7] .stop_pressed = now;
+				case VK_F8;  key_states[Button_Code.F8] .stop_pressed = now;
+				case VK_F9;  key_states[Button_Code.F9] .stop_pressed = now;
+				case VK_F10; key_states[Button_Code.F10].stop_pressed = now;
+				case VK_F11; key_states[Button_Code.F11].stop_pressed = now;
+				case VK_F12; key_states[Button_Code.F12].stop_pressed = now;
 			};
 			result = 0;
 			release(*window_info.input);
