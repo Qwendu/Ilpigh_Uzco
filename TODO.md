@@ -21,6 +21,7 @@
 		- [ ] Spheres
 		- [ ] Tetraeder
 - [ ] Succeeding to Fail
+	- [ ] http://msinilo.pl/blog2/post/p269/
 	- [ ] On Error Create Save File feature
 		- [ ] state from X seconds before crash, dumped to file
 	- [ ] Load Save file feature
