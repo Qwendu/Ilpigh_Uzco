@@ -2,6 +2,7 @@
 
 - [ ] Add Annotation Assertions like ``@"assert(buffer.count == allocated.width * allocated.height)"`` 
 
+- [ ] Refactor windows input from if statements to a simple table lookup!
 
 
 # Systems
@@ -18,12 +19,13 @@
 - [ ] Physics
 	- [x] Line Drawing for Debugging
 	- [ ] Primitives
-		- [ ] Spheres
+		- [x] Spheres
 		- [ ] Tetraeder
 - [ ] Succeeding to Fail
 	- [ ] http://msinilo.pl/blog2/post/p269/
 	- [ ] On Error Create Save File feature
-		- [ ] state from X seconds before crash, dumped to file
+		- [x] physics state from X seconds before crash, dumped to file
+		- [ ] render  state from X seconds before crash, dumped to file
 	- [ ] Load Save file feature
 	- [ ] Windows Error Reporting
 	- [ ] Mail Dialog for Crashes in Release

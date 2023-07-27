@@ -22,6 +22,7 @@ main :: ()
 		platform_context.allocate_Large = allocate_Large_Page;
 		platform_context.sleep = sleep;
 		platform_context.register_Diagnostic = register_Diagnostic;
+		platform_context.dump = dump;
 	}
 
 	game := load_Game_Code(Config.Game_DLL_Name);

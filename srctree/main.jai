@@ -128,6 +128,11 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 		input := ifx IGNORE_INPUT then Input.{} else platform.get_Input(platform.window);
 
+		if was_Button_Just_Pressed(*input, .F11)
+		{
+			log("F11 pressed, we are saving a dump");
+			platform.dump();
+		}
 		mouse_delta := float2.{input.mouse.delta.x * 0.1, input.mouse.delta.y * 0.1};
 		
 		DO_PHYSICS_STEP :bool = true;
