@@ -382,6 +382,11 @@ functions_to_call_if_crash_occurs : Static_Auto_Array(Diagnostic_Function, 4) = 
 old_exception_handler_to_call_after_our_processing_is_done :type_of(crash_Handler) = null;
 handling_a_crash_right_now := false;
 
+recover_dump :: () #c_call
+{
+	// pause all threads
+	
+}
 
 dump :: () #c_call
 {

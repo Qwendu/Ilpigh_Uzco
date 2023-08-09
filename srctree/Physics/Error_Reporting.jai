@@ -1,4 +1,4 @@
-SECONDS_BEFORE_ERROR :: 1;
+SECONDS_BEFORE_ERROR :: Config.DUMP_STATE_FROM_SECONDS_AGO;
 
 
 
@@ -31,3 +31,4 @@ diagnostics_For_Physics : Diagnostic_Function : (log_file_builder : *String_Buil
 #import "Jerialize";
 #import "Common";
 #import "Diagnostic";
+Config :: #import "Config";

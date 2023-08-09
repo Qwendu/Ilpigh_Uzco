@@ -2,7 +2,7 @@ WANT_VTUNE  :: false;
 BACKEND_X64 :: false;
 
 
-Disassembler :: #import,file "srctree/modules/Disassembler.jai"(ENABLE = false);
+Disassembler :: #import,dir "srctree/modules/Disassembler"(ENABLE = true);
 
 
 modules          :: "srctree/modules";
@@ -105,6 +105,7 @@ COMPILATION_MODE : enum { RELEASE; DEVELOPEMENT;} : .DEVELOPEMENT;
 Profiler_Enabled : bool : %;
 ENTRY_FUNCTION  :: #type (*Platform) -> void #c_call;
 ENTRY_FUNCTION_NAME : string : "game_entry";
+DUMP_STATE_FROM_SECONDS_AGO : int : 3;
 
 #scope_file
 

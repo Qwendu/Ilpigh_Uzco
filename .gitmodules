@@ -1,3 +1,6 @@
 [submodule "srctree/modules/Jerialize"]
 	path = srctree/modules/Jerialize
 	url = https://github.com/Qwendu/Jerialize.git
+[submodule "srctree/modules/Disassembler/jai-zydis"]
+	path = srctree/modules/Disassembler/jai-zydis
+	url = https://github.com/Qwendu/jai-zydis.git
