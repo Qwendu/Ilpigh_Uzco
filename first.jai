@@ -139,6 +139,7 @@ DUMP_STATE_FROM_SECONDS_AGO : int : 3;
 				break;
 			}
 		}
+		disassembler.finish(disassembler);
 		Jai.compiler_end_intercept(workspace);
 		return success;
 	}

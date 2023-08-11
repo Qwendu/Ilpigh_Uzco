@@ -772,7 +772,7 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		}
 		Profiler.Plot("Pixel Shader Calls", actual_shader_calls);
 	}
-} @Disassemble
+}
 
 
 Pixel_Shader :: #type (Shader_Input, [] Light_Source) -> Shader_Output;

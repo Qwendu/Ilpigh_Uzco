@@ -5,10 +5,18 @@ Plugin :: struct
 {
 	using #as plug : Jai.Metaprogram_Plugin;
 
-	procedures_to_disassemble : [..] struct { name : string; data : [] u8;};
-
+	procedures_to_disassemble : [..] Disassembled_Procedure;
 }
 
+Disassembled_Procedure :: struct
+{
+	name : string;
+	symbol_name : string;
+	file_of_definition : string;
+	runtime_address : int;
+	binary : [] u8;
+	disassembled : [] Zydis.DisassembledInstruction;
+}
 
 
 
@@ -16,7 +24,8 @@ get_plugin :: (w : Workspace) -> *Jai.Metaprogram_Plugin
 {
 	plug := New(Plugin);
 	plug.workspace = w;
-	plug.message = message;
+	plug.message = xx message;
+	plug.finish = xx finish;
 
 	return plug;
 }
@@ -26,12 +35,90 @@ get_plugin :: (w : Workspace) -> *Jai.Metaprogram_Plugin
 
 #scope_file
 
-message :: (plugin_ : *Jai.Metaprogram_Plugin, msg : *Jai.Message)
+
+finish :: (using plugin : *Plugin)
+{
+	for * proc : procedures_to_disassemble
+	{
+		if proc.binary.data
+		{
+			log("Function % [%]:", proc.name, proc.symbol_name);
+			log("'Runtime address' = 0x%", formatInt(proc.runtime_address, base=16));
+			continue_disassembly := true;
+			{
+				str : [] u8;
+				str.data  = proc.binary.data;
+				str.count = proc.binary.count;
+				disassembled_up_to := proc.runtime_address;
+				highest_jump_to    := proc.runtime_address;
+				instr_idx := 0;
+				while true
+				{
+					defer if disassembled_up_to - proc.runtime_address >= proc.binary.count  break;
+					succ, instr := Zydis.DisassembleIntel(.LONG_64, xx disassembled_up_to, str);
+					if succ != 0 && succ != 0x100000
+					{
+						log("Failed to disassemble instruction at offset +% [%]. Stopping disassembly of function %.", disassembled_up_to, formatInt(succ, base=16), proc.name);
+						proc.binary.count = 0;
+						continue_disassembly = false;
+						break;
+					}
+
+					meta := instr.info.meta;
+
+					// TODO: recognize jumps
+					is_jump, jump_address := is_Jump(instr);
+					if is_jump
+					{
+						highest_jump_to = max(jump_address, highest_jump_to);
+					}
+
+					instr_idx += 1;
+					disassembled_up_to += instr.info.length;
+					str.data           += instr.info.length;
+					str.count          -= instr.info.length;
+
+
+					if meta.category == .RET
+					{
+						if highest_jump_to < disassembled_up_to
+						{
+							log("Found return of function at +% [% instructions]", disassembled_up_to - proc.runtime_address, instr_idx);
+							proc.binary.count = disassembled_up_to;
+							proc.disassembled = NewArray(instr_idx, Zydis.DisassembledInstruction);
+							break;
+						}
+					}
+				}
+			}
+
+			if !continue_disassembly  continue;
+
+			{
+				addr := proc.runtime_address;
+				data := proc.binary;
+				for * instr : proc.disassembled
+				{
+					_, instr.* = Zydis.DisassembleIntel(.LONG_64, xx addr, data);
+					addr       += instr.info.length;
+					data.data  += instr.info.length;
+					data.count -= instr.info.length;
+				}
+				for instr : proc.disassembled
+				{
+					log("%: %", formatInt(instr.runtime_address,base=16), to_string(instr.text));
+				}
+			}
+		}else{
+			log_error("Could not find a binary for procedure %. Skipping", proc.name);
+		}
+	}
+}
+
+message :: (using plugin : *Plugin, msg : *Jai.Message)
 {
 	#if ENABLE
 	{
-		plugin := cast(*Plugin)plugin_;
-		using plugin;
 		if msg.kind == .TYPECHECKED
 		{
 			typechecked := cast(*Jai.Message_Typechecked)msg;
@@ -59,66 +146,45 @@ message :: (plugin_ : *Jai.Metaprogram_Plugin, msg : *Jai.Message)
 				
 				build_options := Jai.get_build_options(plugin.workspace);
 				
-				log("Executable name = %", postcomp.executable_name);
-				
-				//o_file := postcomp.compiler_generated_object_files[postcomp.compiler_generated_object_files.count - 1];
-				for postcomp.compiler_generated_object_files
+				for coff_file_name : postcomp.compiler_generated_object_files
 				{
-			
-					//o_file := join(build_options.output_path, postcomp.executable_name, separator = "/");
-					o_file := it;
-					success, coff := parse_coff_file(o_file);
+					success, coff := parse_coff_file(coff_file_name);
 					if !success  {
-						log("Failed to load %", o_file);
+						log("Failed to load %", coff_file_name);
 						continue;
 					}
-					log("File = %", it);
 					
-					for coff.symbols
+					for sym, sym_idx : coff.symbols
 					{
-						if it.storage_class != .EXTERNAL  continue;
+						if sym.storage_class != .EXTERNAL  continue;
 
-						symbol_name, found_symbol := get_symbol_name(coff, it_index);
+						symbol_name, found_symbol := get_symbol_name(coff, sym_idx);
 						if !found_symbol  continue;
 						disasm, index := should_disassemble(plugin, symbol_name);
 						if disasm 
 						{
 							proc := *plugin.procedures_to_disassemble[index];
-							if it.section_number == 0
+							if proc.symbol_name && proc.symbol_name != symbol_name
+							{
+								log_error("Procedure % has multiple definitions, at least \n[1]: %\n[2]: %\nChoosing [2]", proc.name, proc.symbol_name, symbol_name);
+							}
+							proc.symbol_name        = symbol_name;
+							proc.file_of_definition = coff_file_name;
+							if sym.section_number == 0
 							{
 							}else{
-								section           := it.section_number - 1;
-								offset_in_section := it.value;
+								section           := sym.section_number - 1;
+								section_ptr       := *coff.section_headers[section];
+								offset_in_section := sym.value;
 								section_data := get_section_data(coff, section);
-								log("section  % (%)", section, get_section_name(coff.section_headers[section]));
-								log("offset in section = %", offset_in_section);
-								log("Length of section = %", section_data.count);
-
-
-								proc.data.data += cast(int)section_data.data + offset_in_section;
+								proc.binary.data  = cast(*u8)(section_data.data + offset_in_section);
+								proc.binary.count = section_data.count - offset_in_section;
+								proc.runtime_address = section_ptr.virtual_address + offset_in_section;
 							}
-							log("\t\tSymbol % '%' [%]", it_index, symbol_name, it.storage_class);
-							
 						}
 					}
 				}
-				for plugin.procedures_to_disassemble
-				{
-					if it.data.data
-					{
-						log("data of proc % is here %", it.name, it.data.data);
-						str : [] u8;
-						str.data = it.data.data;
-						str.count = 2000;
-						for 0..20
-						{
-							succ, instr := Zydis.DisassembleIntel(.LONG_64, 0, str);
-							log("% [%]", to_string(instr.text), succ);
-							str.data += instr.info.length;
-							str.count -= instr.info.length;
-						}
-					}
-				}
+
 				
 			}
 		}
@@ -138,6 +204,61 @@ should_disassemble :: (plugin : *Plugin, name : string) -> bool, int
 		}
 	}
 	return false, -1;
+}
+
+is_Jump :: (instr : Zydis.DisassembledInstruction) -> bool, int
+{
+	if instr.info.mnemonic ==
+	{
+	case .JB   ; #through;
+	case .JBE  ; #through;
+	case .JCXZ ; #through;
+	case .JECXZ; #through;
+	case .JKNZD; #through;
+	case .JKZD ; #through;
+	case .JL   ; #through;
+	case .JLE  ; #through;
+	case .JMP  ; #through;
+	case .JNB  ; #through;
+	case .JNBE ; #through;
+	case .JNL  ; #through;
+	case .JNLE ; #through;
+	case .JNO  ; #through;
+	case .JNP  ; #through;
+	case .JNS  ; #through;
+	case .JNZ  ; #through;
+	case .JO   ; #through;
+	case .JP   ; #through;
+	case .JRCXZ; #through;
+	case .JS   ; #through;
+	case .JZ   ; 
+
+	case;
+		return false, 0;
+	}
+	assert(instr.info.operand_count_visible == 1, "Jumps have one address operand");
+	op := instr.operands[0];
+
+	if op.type == .REGISTER
+	{
+		log_error("Jumpig using a register as a base at +%, we dont know how far we jump", instr.runtime_address);
+	}
+
+	if op.type == .IMMEDIATE
+	{
+		if op.imm.is_relative
+		{
+			return true, (cast(s64)instr.runtime_address) + instr.info.length + op.imm.value.s;
+		}else{
+			assert(false, "Hardcoding immediate jumps?");
+			return true, op.imm.value.s;
+		}
+	}
+	
+	
+	
+
+	return true, 0;
 }
 
 

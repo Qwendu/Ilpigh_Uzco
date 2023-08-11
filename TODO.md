@@ -31,4 +31,8 @@
 	- [ ] Windows Error Reporting
 	- [ ] Mail Dialog for Crashes in Release
 	- [ ] Recovery Mode for Release which records extra data for crash dumps 
-			
+- [ ] Metaprogram
+	- [x] Disassembling procedures
+	- [ ] Analysis of disassembled procedures
+	- [ ] Analysis of procedures
+	- [ ] Pre/Post-Conditions assert(...) and defer assert(...) respectively static analysis
