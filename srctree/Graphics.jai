@@ -7,8 +7,9 @@ GAMMA : float : 2.2;
 Draw_Args :: struct
 {
 	exit: *int;
-	plt : *Platform;
 	c   : *Context;
+	window : Window;
+	startup_time : Apollo_Time;
 
 	output : *Output;
 };
@@ -25,10 +26,9 @@ command_buffer : Async_Buffer(Draw_Buffer);
 draw :: (args :*Draw_Args) #c_call
 {
 	Profiler.NameThread(#procedure_name());
-	plt : *Platform = args.plt;
 
 	draw_context := Context.{};
-	draw_context.STARTUP_TIME = args.plt.STARTUP_TIME;
+	draw_context.STARTUP_TIME = args.startup_time;
 	draw_context.logger = draw_logger;
 	push_context,defer_pop draw_context;
 	output : Output;
@@ -39,7 +39,7 @@ draw :: (args :*Draw_Args) #c_call
 
 	{
 		bytes_to_alloc := Mebi(256);
-		buffer_memory.data = plt.allocate_Large(bytes_to_alloc);
+		buffer_memory.data = platform.allocate_Large(bytes_to_alloc);
 		log("Large page returned %\n", buffer_memory.data);
 		if buffer_memory.data  buffer_memory.count = bytes_to_alloc;
 	}
@@ -178,9 +178,9 @@ draw :: (args :*Draw_Args) #c_call
 		Profiler.TimeZone();
 		Profiler.Frame("Graphics");
 		buffer : *Draw_Buffer = get_Read_Pointer(command_reader);
-		render_Draw_Buffer(plt, buffer);
-		plt.update_Window(plt.window);
-		plt.sleep(30);
+		render_Draw_Buffer(args.window, buffer);
+		platform.update_Window(args.window);
+		platform.sleep(30);
 	}
 
 	atomic_volatile_write(args.exit, 0);
@@ -393,7 +393,7 @@ BASELINE,      24699,   9.6,      534.95
 */
 //
 //
-render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
+render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 {
 	Profiler.TimeZone(#procedure_name());
 	LOG_CLIPPING :: false;
@@ -411,7 +411,7 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 
 
 
-	bb := plt.get_BackBuffer(plt.window);
+	bb := platform.get_BackBuffer(window);
 	mouse_pos_ndc = .{mouse_pos_ndc.x/bb.size.x, mouse_pos_ndc.y/bb.size.y};
 	mouse_pos_ndc.y = 1 - mouse_pos_ndc.y;
 	mouse_pos_ndc *= 2;
@@ -918,3 +918,4 @@ Profiler :: #import "Tracy";
 #import "Memory";
 #import "Mutex";
 #import "Predicated_Array";
+#import "Platform_Interface";

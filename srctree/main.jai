@@ -17,9 +17,9 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 {
 	Profiler.NameThread(#procedure_name());
 	if !platform_init return;
-	platform = platform_init;
+	init(*platform_init.calls);
 	c : Context;
-	c.STARTUP_TIME = platform.STARTUP_TIME;
+	c.STARTUP_TIME = platform_init.STARTUP_TIME;
 	c.allocator = platform.general_heap;
 	c.logger = logger;
 
@@ -29,7 +29,12 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 	
 	draw_thread_exit : int = 0;
-	args := Draw_Args.{exit = *draw_thread_exit, plt = platform, c = *context};
+	args := Draw_Args.{
+		exit         = *draw_thread_exit,
+		window       = platform_init.window,
+		startup_time = context.STARTUP_TIME,
+		c            = *context
+	};
 	platform.start_Thread(xx draw, *args);
 	platform.register_Diagnostic(diagnostics_For_Physics);
 	
@@ -119,14 +124,14 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	log("obj2 has id %", formatID(obj2));
 	
 
-	while atomic_volatile_read(*platform.exit) == 0
+	while atomic_volatile_read(*platform_init.exit) == 0
 	{
 		DELTA :: 1.0/PHYSICS_FREQUENCY;
 
 		Profiler.Frame("Physics");
 		now := current_time_monotonic();
 
-		input := ifx IGNORE_INPUT then Input.{} else platform.get_Input(platform.window);
+		input := ifx IGNORE_INPUT then Input.{} else platform.get_Input(platform_init.window);
 
 		if was_Button_Just_Pressed(*input, .F11)
 		{
@@ -476,7 +481,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		//log("Waiting for exit");
 	}
 	
-	atomic_volatile_write(*platform.exit, 0);
+	atomic_volatile_write(*platform_init.exit, 0);
 }
 
 logger :: (message : string, data : *void, info : Log_Info)
@@ -487,10 +492,6 @@ logger :: (message : string, data : *void, info : Log_Info)
 		print("[PHYSICS]+%: %\n", to_milliseconds(now), it);
 	}
 }
-
-
-platform : *Platform;
-
 
 
 
@@ -512,3 +513,4 @@ Profiler :: #import "Tracy";
 #import "Camera";
 #import "Logging_Utils";
 #import "Input_System";
+#import "Platform_Interface";

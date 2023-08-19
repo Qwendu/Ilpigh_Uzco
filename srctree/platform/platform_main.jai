@@ -12,17 +12,21 @@ main :: ()
 	platform_context : Platform;
 	{
 		platform_context.STARTUP_TIME = STARTUP_TIME;
-		platform_context.general_heap = context.allocator;
-		platform_context.start_Thread  = start_Thread;
-		platform_context.stop\_Thread  = stop\_Thread;
-		platform_context.update_Window = xx update_Window;
-		platform_context.get_BackBuffer = xx get_BackBuffer;
-		platform_context.get_Input = get_Input;
-		platform_context.window = xx create_Window("Ilpigh Uzco", .{800, 600});
-		platform_context.allocate_Large = allocate_Large_Page;
-		platform_context.sleep = sleep;
-		platform_context.register_Diagnostic = register_Diagnostic;
-		platform_context.dump = dump;
+		platform_context.window = cast(Window) create_Window("Ilpigh Uzco", .{800, 600});
+		platform_context.exit = 0;
+		platform_calls := Platform_Calls.{
+			general_heap   = context.allocator,
+			start_Thread   = xx start_Thread,
+			stop\_Thread   = xx stop\_Thread,
+			update_Window  = xx update_Window,
+			get_BackBuffer = xx get_BackBuffer,
+			get_Input      = xx get_Input,
+			sleep          = xx sleep,
+			allocate_Large = xx allocate_Large_Page,
+			register_Diagnostic = xx register_Diagnostic,
+			dump           = xx dump,
+		};
+		platform_context.calls = platform_calls;
 	}
 
 	game := load_Game_Code(Config.Game_DLL_Name);
@@ -76,4 +80,4 @@ logger :: (message : string, data : *void, info : Log_Info)
 #import "Common";
 Profiler :: #import "Tracy";
 Config   :: #import "Config";
-
+#import "Platform_Interface";
