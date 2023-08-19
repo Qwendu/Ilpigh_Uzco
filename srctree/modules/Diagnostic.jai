@@ -71,7 +71,7 @@ reserve_Allocator : Allocator_Proc : (mode : Allocator_Mode, size : s64, old_siz
 }
 
 
-arena : Static_Auto_Array(u8, #run Mebi(100));
+arena : Static_Auto_Array(#run Mebi(100), u8);
 
 
 

@@ -565,8 +565,8 @@ SHAPE_ENCODING_BITS :: #run -> s64
 physics_state : struct
 {
 	time : Apollo_Time;
-	tetraeder : Static_Auto_Array(Physics_Object(.TETRAEDER), 100);
-	spheres   : Static_Auto_Array(Physics_Object(.SPHERE),    100);
+	tetraeder : Static_Auto_Array(100,Physics_Object(.TETRAEDER));
+	spheres   : Static_Auto_Array(100,Physics_Object(.SPHERE));
 }
 
 

@@ -8,19 +8,22 @@ Mutex  :: struct(T : Type)
 }
 
 
+create :: (m : *Mutex($T))
+{
+	m.lock = platform.mutex_create();
+}
+
 acquire :: (mutex : *$M/Mutex, loc := #caller_location) -> *M.T  #expand
 {
 	//print("Acquiring % in %\n", mutex, loc);
-	while !compare_and_swap(dest = *mutex.lock, old = 0, new = 1)
-	{}
+	platform.mutex_acquire(mutex.lock);
 	return *mutex.data;
 }
 
 release :: (mutex : *$M/Mutex, loc := #caller_location)  #expand
 {
 	//print("Releasing % in %\n", mutex, loc);
-	while !compare_and_swap(dest = *mutex.lock, old = 1, new = 0)
-	{}
+	platform.mutex_release(mutex.lock);
 }
 
 for_expansion :: (m : *Mutex($T), body : Code, flags : For_Flags)
@@ -34,3 +37,4 @@ for_expansion :: (m : *Mutex($T), body : Code, flags : For_Flags)
 #import "Sync";
 #import "Basic";
 #import "Machine";
+#import "Platform_Interface";

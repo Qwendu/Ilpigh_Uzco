@@ -24,7 +24,8 @@ Window_Info :: struct
 	
 	
 
-	input : Mutex(Input);
+	input_mutex : int;
+	input : Input;
 
 	exit           : bool; @Atomic;
 	clear_input    : bool; @Atomic;
@@ -182,6 +183,7 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 			y = drawable_area.bottom - drawable_area.top
 		});
 	}
+	input := get_Input(xx main_window);
 	return main_window;
 }
 
@@ -319,13 +321,13 @@ get_Input :: (window : Window) -> Input #c_call
 {
 	win := cast(*Window_Info)window;
 	push_context,defer_pop win.window_context;
-	in := acquire(*win.input);
-	res := in.*;
+	mutex_acquire(win.input_mutex);
+	res := win.input;
 
-	in.mouse.delta = .{};
-	in.last_retrieval_time = current_time_monotonic();
+	win.input.mouse.delta = .{};
+	win.input.last_retrieval_time = current_time_monotonic();
 
-	release(*win.input);
+	mutex_release(win.input_mutex);
 	return res;
 }
 
@@ -378,7 +380,7 @@ register_Crash_Handler :: ()
 }
 
 
-functions_to_call_if_crash_occurs : Static_Auto_Array(Diagnostic_Function, 4) = .{};
+functions_to_call_if_crash_occurs : Static_Auto_Array(4, Diagnostic_Function) = .{};
 old_exception_handler_to_call_after_our_processing_is_done :type_of(crash_Handler) = null;
 handling_a_crash_right_now := false;
 
@@ -429,7 +431,7 @@ crash_Handler :: (ptr : *EXCEPTION_POINTERS) -> s32 #c_call
 
 
 
-#scope_file
+#scope_module
 
 
 create_Bitmap :: (size : int2) -> Bitmap
@@ -544,10 +546,10 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 			// @BetterMouse
 			// Maybe add here that we track where the mouse is?
 			// And maybe support modes where the mouse stays in the center of the screen
-			in := acquire(*window_info.input);
-			in.mouse.position_relative_to_top_left.x =  clamp((lparam >>  0) & 0xFFFF, 0, window_info.bitmap.size.x);
-			in.mouse.position_relative_to_top_left.y =  clamp((lparam >> 16) & 0xFFFF, 0, window_info.bitmap.size.y);
-			release(*window_info.input);
+			mutex_acquire(window_info.input_mutex);
+			window_info.input.mouse.position_relative_to_top_left.x =  clamp((lparam >>  0) & 0xFFFF, 0, window_info.bitmap.size.x);
+			window_info.input.mouse.position_relative_to_top_left.y =  clamp((lparam >> 16) & 0xFFFF, 0, window_info.bitmap.size.y);
+			mutex_release(window_info.input_mutex);
 
 			
 
@@ -564,11 +566,11 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 				mouse_raw := raw.data.mouse;
 				if !mouse_raw.usFlags & MOUSE_MOVE_ABSOLUTE
 				{
-					in := acquire(*window_info.input);
-					using in;
+					mutex_acquire(window_info.input_mutex);
+					using window_info.input;
 					mouse.delta.x += mouse_raw.lLastX;
 					mouse.delta.y += mouse_raw.lLastY;
-					release(*window_info.input);
+					mutex_release(window_info.input_mutex);
 				}
 
 			}
@@ -579,8 +581,8 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 			
 		case WM_KEYDOWN;
 			// https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
-			in := acquire(*window_info.input);
-			using in;
+			mutex_acquire(window_info.input_mutex);
+			using window_info.input;
 			now := current_time_monotonic();
 			check_And_Set_Pressed :: (windows_code : int, code : Button_Code) #expand
 			{
@@ -634,10 +636,10 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 
 
 			result = 0;
-			release(*window_info.input);
+			mutex_release(window_info.input_mutex);
 		case WM_KEYUP;
-			in := acquire(*window_info.input);
-			using in;
+			mutex_acquire(window_info.input_mutex);
+			using window_info.input;
 			now := current_time_monotonic();
 			if wparam == 
 			{
@@ -684,7 +686,7 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 				case VK_F12; key_states[Button_Code.F12].stop_pressed = now;
 			};
 			result = 0;
-			release(*window_info.input);
+			mutex_release(window_info.input_mutex);
 			
 		case WM_CHAR;
 			// https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-char
@@ -818,7 +820,6 @@ WM_ACTIVATE :: 0x0006;
 #import "Sync";
 #import "Async_Buffer";
 #import "Bucket_Array";
-#import "Mutex";
 #import "Memory";
 #import "IUMath";
 #import "Static_Auto_Array";
@@ -826,3 +827,5 @@ WM_ACTIVATE :: 0x0006;
 #import "File";
 #import "Input_System";
 #import "Platform_Interface";
+
+#load "threading.jai";

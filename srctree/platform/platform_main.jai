@@ -25,6 +25,9 @@ main :: ()
 			allocate_Large = xx allocate_Large_Page,
 			register_Diagnostic = xx register_Diagnostic,
 			dump           = xx dump,
+			mutex_create  = mutex_create,
+			mutex_acquire = mutex_acquire,
+			mutex_release = mutex_release,
 		};
 		platform_context.calls = platform_calls;
 	}

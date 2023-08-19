@@ -12,6 +12,9 @@ Platform_Calls :: struct
 	allocate_Large : (int) -> (*void) #c_call;
 	register_Diagnostic : (Diagnostic_Function) -> void #c_call;
 	dump           : () -> void #c_call;
+	mutex_create   : () -> int #c_call;
+	mutex_acquire   : (int) -> () #c_call;
+	mutex_release   : (int) -> () #c_call;
 };
 
 platform : Platform_Calls;

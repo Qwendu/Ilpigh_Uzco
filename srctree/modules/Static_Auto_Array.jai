@@ -1,7 +1,7 @@
 #scope_export
 
 
-Static_Auto_Array :: struct(type : Type, capacity : int)
+Static_Auto_Array :: struct(capacity : int, type : Type)
 {
 	count : int;
 	data  : [capacity] type;
