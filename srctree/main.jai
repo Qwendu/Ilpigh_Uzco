@@ -431,10 +431,9 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 			}
 
 			id := identity(4, float);
-			TET :: 4;
 			for * o : objects
 			{
-				add_Mesh(draw_buffer, .{TET, add_Offset(id, o.translation.position)});
+				add_Mesh(draw_buffer, .{get_Mesh_ID("tet"), add_Offset(id, o.translation.position)});
 				//gizmo_At(o.translation.position);
 
 				add_Line(draw_buffer, o.translation.position, o.translation.position + o.translation.velocity * dt, RED);
@@ -512,3 +511,4 @@ Profiler :: #import "Tracy";
 #import "IUMath";
 #import "Camera";
 #import "Logging_Utils";
+#import "Input_System";

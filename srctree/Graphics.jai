@@ -44,121 +44,134 @@ draw :: (args :*Draw_Args) #c_call
 		if buffer_memory.data  buffer_memory.count = bytes_to_alloc;
 	}
 	
+	//
+	// Loading always loaded meshes
+	//
 	material_1 := Material.{};
 	material_1.color = .{0,1,0,0};
 
-	m1_id, m2_id, floor_tile_id, height_map_id: int;
-
+	tet_id : Mesh_ID;
+	m1_id  : Mesh_ID;
+	m2_id  : Mesh_ID;
+	floor_tile_id : Mesh_ID;
+	height_map_id : Mesh_ID;
 	{
-		m1 : Mesh;
-		m1.material = .{.{1,1,0, 0}};
-		m1.vertices = .[
-			.{-1,0,-1},
-			.{1,0,-1},
-			.{0,1,-8},
-			//.{0,0,0}
-		];
-		m1.triangles = .[
-			.{0,1,2},
-			//.{0,3,1}
-		];
-		m1.aabb = generate_AABB_Of_Mesh(m1);
-		m1_id := register_Mesh(m1);
-	}
-	{
-		m2 : Mesh;
-		m2.material = .{.{0,1,0, 0}};;
-		m2.vertices = .[
-			.{-1, 0,0},
-			.{ 1, 0,-4},
-			.{-1, 0,-10},
-			.{ 1, 0,-10},
-		];
-		m2.triangles = .[
-			.{0,1,2},
-			.{1,3,2}
-		];
-		m2.aabb = generate_AABB_Of_Mesh(m2);
-		m2_id = register_Mesh(m2);
-	}
-	{
-		floor_tile : Mesh;
-		floor_tile.material = .{.{0.2,.2,.2,1}};
-		floor_tile.vertices = .[
-			.{0,1,1},
-			.{1,1,1},
-			.{0,0,1},
-			.{1,0,1},
-		];
-		floor_tile.triangles = .[
-			.{0,3,1},
-			.{0,2,3}
-		];
-		floor_tile.aabb = generate_AABB_Of_Mesh(floor_tile);
-		floor_tile_id = register_Mesh(floor_tile);
-	}
-
-	{
-		height_map_res :: int2.{30, 30};
-		height_map_dims :: float3.{10, .7, 10};
-		height_map : Mesh;
-		height_map.material.color = .{1,1,1,1};
-		height_map.vertices = NewArray(height_map_res.x * height_map_res.y, float3);
-
-		for h: 0..height_map_res.y-1
 		{
-			for w: 0..height_map_res.x-1
-			{
-				w_sample := cast(float)w/(height_map_res.x - 1);
-				h_sample := cast(float)h/(height_map_res.y - 1);
-				v := *height_map.vertices[h * height_map_res.x + w];
-				v.x = w_sample * height_map_dims.x - height_map_dims.x/2;
-				v.z = h_sample * height_map_dims.z - height_map_dims.z/2;
-				v.y = cast(float)(sin(w_sample * 2 * PI)) * height_map_dims.y;
-			}
+			m1_id = register_Mesh("mesh_1");
+			m1 : Mesh;
+			m1.material = .{.{1,1,0, 0}};
+			m1.vertices = .[
+				.{-1,0,-1},
+				.{1,0,-1},
+				.{0,1,-8},
+				//.{0,0,0}
+			];
+			m1.triangles = .[
+				.{0,1,2},
+				//.{0,3,1}
+			];
+			m1.aabb = generate_AABB_Of_Mesh(m1);
+			set_Mesh(m1_id, m1);
 		}
-		height_map.triangles = NewArray((height_map_res.x - 1) * 2 * (height_map_res.y - 1), int3);
-		idx := 0;
-		for h: 0..height_map_res.y-2
 		{
-			for w: 0..height_map_res.x-2
-			{
-				v1 := h * height_map_res.x + w;
-				v2 := h * height_map_res.x + (w + 1);
-				v3 := (h + 1) * height_map_res.x + w;
-				v4 := (h + 1) * height_map_res.x + (w + 1);
-				height_map.triangles[idx + 0] = .{v1,v3, v2}; 
-				height_map.triangles[idx + 1] = .{v2,v3, v4}; 
-				idx += 2;
-			}
+			m2_id = register_Mesh("m2");
+			m2 : Mesh;
+			m2.material = .{.{0,1,0, 0}};;
+			m2.vertices = .[
+				.{-1, 0,0},
+				.{ 1, 0,-4},
+				.{-1, 0,-10},
+				.{ 1, 0,-10},
+			];
+			m2.triangles = .[
+				.{0,1,2},
+				.{1,3,2}
+			];
+			m2.aabb = generate_AABB_Of_Mesh(m2);
+			set_Mesh(m2_id, m2);
 		}
-		log("% vertices, % triangles in heightmap", height_map.vertices.count, height_map.triangles.count);
-		height_map.aabb = generate_AABB_Of_Mesh(height_map);
-		height_map_id = register_Mesh(height_map);
+		{
+			floor_tile_id = register_Mesh("floor_tile");
+			floor_tile : Mesh;
+			floor_tile.material = .{.{0.2,.2,.2,1}};
+			floor_tile.vertices = .[
+				.{0,1,1},
+				.{1,1,1},
+				.{0,0,1},
+				.{1,0,1},
+			];
+			floor_tile.triangles = .[
+				.{0,3,1},
+				.{0,2,3}
+			];
+			floor_tile.aabb = generate_AABB_Of_Mesh(floor_tile);
+			set_Mesh(floor_tile_id, floor_tile);
+		}
+
+		{
+			height_map_res :: int2.{30, 30};
+			height_map_dims :: float3.{10, .7, 10};
+			height_map : Mesh;
+			height_map.material.color = .{1,1,1,1};
+			height_map.vertices = NewArray(height_map_res.x * height_map_res.y, float3);
+
+			for h: 0..height_map_res.y-1
+			{
+				for w: 0..height_map_res.x-1
+				{
+					w_sample := cast(float)w/(height_map_res.x - 1);
+					h_sample := cast(float)h/(height_map_res.y - 1);
+					v := *height_map.vertices[h * height_map_res.x + w];
+					v.x = w_sample * height_map_dims.x - height_map_dims.x/2;
+					v.z = h_sample * height_map_dims.z - height_map_dims.z/2;
+					v.y = cast(float)(sin(w_sample * 2 * PI)) * height_map_dims.y;
+				}
+			}
+			height_map.triangles = NewArray((height_map_res.x - 1) * 2 * (height_map_res.y - 1), int3);
+			idx := 0;
+			for h: 0..height_map_res.y-2
+			{
+				for w: 0..height_map_res.x-2
+				{
+					v1 := h * height_map_res.x + w;
+					v2 := h * height_map_res.x + (w + 1);
+					v3 := (h + 1) * height_map_res.x + w;
+					v4 := (h + 1) * height_map_res.x + (w + 1);
+					height_map.triangles[idx + 0] = .{v1,v3, v2}; 
+					height_map.triangles[idx + 1] = .{v2,v3, v4}; 
+					idx += 2;
+				}
+			}
+			log("% vertices, % triangles in heightmap", height_map.vertices.count, height_map.triangles.count);
+			height_map.aabb = generate_AABB_Of_Mesh(height_map);
+			height_map_id = register_Mesh("height_map");
+			set_Mesh(height_map_id, height_map);
+		}
+
+		{
+			angle :: 120.0/180 * PI;
+			cosa :: #run cos(angle);
+			sina :: #run sin(angle);
+			tet : Mesh;
+			tet.vertices = .[
+				.{0, .5,0},
+				.{1,-.5,0},
+				.{ cosa,-.5,-sina},
+				.{ cosa,-.5, sina},
+			];
+			tet.triangles = .[
+				.{2,1,3},
+				.{0,1,2},
+				.{1,0,3},
+				.{0,2,3},
+			];
+			tet.aabb = generate_AABB_Of_Mesh(tet);
+			tet.material.color = .{1,0.3,0.5, 0};
+			tet_id  = register_Mesh("tet");
+			set_Mesh(tet_id, tet);
+		}
 	}
 
-	tet_id : int;
-	{
-		angle :: 120.0/180 * PI;
-		cosa :: #run cos(angle);
-		sina :: #run sin(angle);
-		tet : Mesh;
-		tet.vertices = .[
-			.{0, .5,0},
-			.{1,-.5,0},
-			.{ cosa,-.5,-sina},
-			.{ cosa,-.5, sina},
-		];
-		tet.triangles = .[
-			.{2,1,3},
-			.{0,1,2},
-			.{1,0,3},
-			.{0,2,3},
-		];
-		tet.aabb = generate_AABB_Of_Mesh(tet);
-		tet.material.color = .{1,0.3,0.5, 0};
-		tet_id  = register_Mesh(tet);
-	}
 
 	while atomic_volatile_read(args.exit) == 0
 	{
@@ -213,13 +226,49 @@ add_Line :: (buffer : *Draw_Buffer, start : float3, end : float3, color : Color)
 }
 
 
-register_Mesh :: (mesh : Mesh) -> int
+get_Mesh_ID :: (mesh_path : Mesh_Path) -> Mesh_ID
 {
-	id := loaded_meshes.count;
-	mesh_ptr := array_add(*loaded_meshes);
-	mesh_ptr.* = mesh;
+	{
+		map := acquire(*Mesh_Manager.mesh_path_id_map);
+		defer  release(*Mesh_Manager.mesh_path_id_map);
+		for map.*
+		{
+			if it.path == mesh_path  return it.id;
+		}
+	}
+	return register_Mesh(mesh_path);
+}
+
+get_Mesh :: (mesh_id : Mesh_ID) -> *Mesh
+{
+	if mesh_id < 0  return null;
+	
+	loaded_meshes := acquire(*Mesh_Manager.loaded_meshes);
+	defer release(*Mesh_Manager.loaded_meshes);
+	return get(loaded_meshes, cast(int) mesh_id);
+}
+
+register_Mesh :: (path : Mesh_Path) -> Mesh_ID
+{
+	log("Registering Mesh '%'", path);
+	id : Mesh_ID;
+	{
+		loaded_meshes := acquire(*Mesh_Manager.loaded_meshes);
+		defer            release(*Mesh_Manager.loaded_meshes);
+		id = cast(Mesh_ID) get_Slot(loaded_meshes);
+	}
+	{
+		map := acquire(*Mesh_Manager.mesh_path_id_map);
+		defer  release(*Mesh_Manager.mesh_path_id_map);
+		array_add(map, .{id = id, path = path});
+	}
 	return id;
 }
+
+
+
+Mesh_ID   :: #type,distinct int;
+Mesh_Path :: #type,distinct string;
 
 clear_Instances :: (draw_buffer : *Draw_Buffer)
 {
@@ -230,11 +279,19 @@ clear_Instances :: (draw_buffer : *Draw_Buffer)
 
 Model_Instance :: struct
 {
-	id : int;
+	id : Mesh_ID;
 	model_to_world : float4x4;
 };
 
 #scope_file
+
+set_Mesh :: (mesh_id : Mesh_ID, mesh : Mesh)
+{
+	loaded_meshes := acquire(*Mesh_Manager.loaded_meshes);
+	defer            release(*Mesh_Manager.loaded_meshes);
+	set(loaded_meshes, cast(int) mesh_id, mesh);
+}
+
 
 
 draw_logger :: (message : string, data : *void, info : Log_Info)
@@ -293,8 +350,14 @@ Draw_Buffer :: struct
 };
 
 
+loaded_meshes_mutexed : Mutex([..] Mesh);
+//mesh_id_map : Hash_Table(Mesh_Path, Mesh_ID);
 
-loaded_meshes : [..] Mesh;
+Mesh_Manager : struct
+{
+	loaded_meshes    : Mutex(PredicatedAutoArray(Mesh));
+	mesh_path_id_map : Mutex([..] struct {path : Mesh_Path; id : Mesh_ID;});
+};
 
 
 
@@ -424,7 +487,12 @@ render_Draw_Buffer :: (plt : *Platform, draw_buffer : *Draw_Buffer)
 		for 0..draw_buffer.n_instances-1
 		{
 			instance := *draw_buffer.instances[it];
-			mesh     := *loaded_meshes[instance.id];
+			mesh     := get_Mesh(instance.id);
+			if !mesh
+			{
+				log("Failed to load mesh of id %", instance.id);
+				continue;
+			}
 			corners_mesh  :=  aabb_To_Corners(mesh.aabb);
 			instance_to_world      := instance.model_to_world;
 			instance_to_projection := world_to_projection * instance.model_to_world;
@@ -849,3 +917,4 @@ Profiler :: #import "Tracy";
 #import "Sync";
 #import "Memory";
 #import "Mutex";
+#import "Predicated_Array";

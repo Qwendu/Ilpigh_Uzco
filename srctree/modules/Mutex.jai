@@ -23,6 +23,13 @@ release :: (mutex : *$M/Mutex, loc := #caller_location)  #expand
 	{}
 }
 
+for_expansion :: (m : *Mutex($T), body : Code, flags : For_Flags)
+{
+	t := acquire(m);
+	for_expansion(t, body, flags);
+	release(m);
+}
+
 #import "Atomics";
 #import "Sync";
 #import "Basic";
