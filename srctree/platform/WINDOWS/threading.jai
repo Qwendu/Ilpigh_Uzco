@@ -1,4 +1,4 @@
-
+#scope_export
 
 all_mutexes : Static_Auto_Array(100, HANDLE);
 

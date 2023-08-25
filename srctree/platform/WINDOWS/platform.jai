@@ -525,16 +525,14 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 			capture_cursor := wparam == WA_ACTIVE || wparam == WA_CLICKACTIVE;
 			// Clipping the cursor to the window
 			// https://learn.microsoft.com/en-us/windows/win32/learnwin32/other-mouse-operations#confining-the-cursor
-			if capture_cursor 
+			if capture_cursor && false
 			{
-				/*
 				pt1 := POINT.{0,0};
 				pt2 := POINT.{xx window_info.size.x, xx window_info.size.y};
 				ClientToScreen(window_info.handle, *pt1);
 				ClientToScreen(window_info.handle, *pt2);
 				rect :=  RECT.{pt1.x, pt1.y, pt2.x, pt2.y};
 				window_info.active = ClipCursor(*rect) != 0;
-				*/
 			}
 			else
 			{
@@ -542,152 +540,14 @@ window_Proc :: (window_handle : HWND, u_message : UINT, wparam : WPARAM, lparam 
 				window_info.active = false;
 			}
 		case WM_MOUSEMOVE;
-			//https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mousemove
-			// @BetterMouse
-			// Maybe add here that we track where the mouse is?
-			// And maybe support modes where the mouse stays in the center of the screen
-			mutex_acquire(window_info.input_mutex);
-			window_info.input.mouse.position_relative_to_top_left.x =  clamp((lparam >>  0) & 0xFFFF, 0, window_info.bitmap.size.x);
-			window_info.input.mouse.position_relative_to_top_left.y =  clamp((lparam >> 16) & 0xFFFF, 0, window_info.bitmap.size.y);
-			mutex_release(window_info.input_mutex);
-
-			
-
+			mouse_Move(window_info, u_message, wparam, lparam);
 			
 		case WM_INPUT;
-			// https://web.archive.org/web/20120223150901/http://www.toymaker.info/Games/html/raw_input.html
-			size_required : u32;
-			GetRawInputData(cast(HRAWINPUT)lparam, RID_INPUT, null, *size_required, size_of(RAWINPUTHEADER));
-			if window_info.raw_input_buffer.count < size_required  array_resize(*window_info.raw_input_buffer, size_required);
-			GetRawInputData(cast(HRAWINPUT)lparam, RID_INPUT, window_info.raw_input_buffer.data, *size_required, size_of(RAWINPUTHEADER));
-			raw : *RAWINPUT = xx window_info.raw_input_buffer.data;
-			if raw.header.dwType == RIM_TYPEMOUSE
-			{
-				mouse_raw := raw.data.mouse;
-				if !mouse_raw.usFlags & MOUSE_MOVE_ABSOLUTE
-				{
-					mutex_acquire(window_info.input_mutex);
-					using window_info.input;
-					mouse.delta.x += mouse_raw.lLastX;
-					mouse.delta.y += mouse_raw.lLastY;
-					mutex_release(window_info.input_mutex);
-				}
-
-			}
-
-
-
-				
-			
+			handle_Input(window_info, u_message, wparam, lparam);
 		case WM_KEYDOWN;
-			// https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
-			mutex_acquire(window_info.input_mutex);
-			using window_info.input;
-			now := current_time_monotonic();
-			check_And_Set_Pressed :: (windows_code : int, code : Button_Code) #expand
-			{
-				if wparam == windows_code && key_states[code].start_pressed < key_states[code].stop_pressed
-				{
-					key_states[code].start_pressed = now;
-				}
-			}
-			// TODO: Refactor this to a lookup
-			check_And_Set_Pressed(#char "A", Button_Code.A);
-			check_And_Set_Pressed(#char "B", Button_Code.B);
-			check_And_Set_Pressed(#char "C", Button_Code.C);
-			check_And_Set_Pressed(#char "D", Button_Code.D);
-			check_And_Set_Pressed(#char "E", Button_Code.E);
-			check_And_Set_Pressed(#char "F", Button_Code.F);
-			check_And_Set_Pressed(#char "G", Button_Code.G);
-			check_And_Set_Pressed(#char "H", Button_Code.H);
-			check_And_Set_Pressed(#char "I", Button_Code.I);
-			check_And_Set_Pressed(#char "J", Button_Code.J);
-			check_And_Set_Pressed(#char "K", Button_Code.K);
-			check_And_Set_Pressed(#char "L", Button_Code.L);
-			check_And_Set_Pressed(#char "M", Button_Code.M);
-			check_And_Set_Pressed(#char "N", Button_Code.N);
-			check_And_Set_Pressed(#char "O", Button_Code.O);
-			check_And_Set_Pressed(#char "P", Button_Code.P);
-			check_And_Set_Pressed(#char "Q", Button_Code.Q);
-			check_And_Set_Pressed(#char "R", Button_Code.R);
-			check_And_Set_Pressed(#char "S", Button_Code.S);
-			check_And_Set_Pressed(#char "T", Button_Code.T);
-			check_And_Set_Pressed(#char "U", Button_Code.U);
-			check_And_Set_Pressed(#char "V", Button_Code.V);
-			check_And_Set_Pressed(#char "W", Button_Code.W);
-			check_And_Set_Pressed(#char "X", Button_Code.X);
-			check_And_Set_Pressed(#char "Y", Button_Code.Y);
-			check_And_Set_Pressed(#char "Z", Button_Code.Z);
-
-			check_And_Set_Pressed(VK_LBUTTON, Button_Code.MOUSE_LEFT);
-			check_And_Set_Pressed(VK_RBUTTON, Button_Code.MOUSE_RIGHT);
-			check_And_Set_Pressed(VK_F1, Button_Code.F1);
-			check_And_Set_Pressed(VK_F2, Button_Code.F2);
-			check_And_Set_Pressed(VK_F3, Button_Code.F3);
-			check_And_Set_Pressed(VK_F4, Button_Code.F4);
-			check_And_Set_Pressed(VK_F5, Button_Code.F5);
-			check_And_Set_Pressed(VK_F6, Button_Code.F6);
-			check_And_Set_Pressed(VK_F7, Button_Code.F7);
-			check_And_Set_Pressed(VK_F8, Button_Code.F8);
-			check_And_Set_Pressed(VK_F9, Button_Code.F9);
-			check_And_Set_Pressed(VK_F10, Button_Code.F10);
-			check_And_Set_Pressed(VK_F11, Button_Code.F11);
-			check_And_Set_Pressed(VK_F12, Button_Code.F12);
-
-
-			result = 0;
-			mutex_release(window_info.input_mutex);
+			key_Down(window_info, u_message, wparam, lparam);
 		case WM_KEYUP;
-			mutex_acquire(window_info.input_mutex);
-			using window_info.input;
-			now := current_time_monotonic();
-			if wparam == 
-			{
-				case #char "A"; key_states[Button_Code.A].stop_pressed = now;
-				case #char "B"; key_states[Button_Code.B].stop_pressed = now;
-				case #char "C"; key_states[Button_Code.C].stop_pressed = now;
-				case #char "D"; key_states[Button_Code.D].stop_pressed = now;
-				case #char "E"; key_states[Button_Code.E].stop_pressed = now;
-				case #char "F"; key_states[Button_Code.F].stop_pressed = now;
-				case #char "G"; key_states[Button_Code.G].stop_pressed = now;
-				case #char "H"; key_states[Button_Code.H].stop_pressed = now;
-				case #char "I"; key_states[Button_Code.I].stop_pressed = now;
-				case #char "J"; key_states[Button_Code.J].stop_pressed = now;
-				case #char "K"; key_states[Button_Code.K].stop_pressed = now;
-				case #char "L"; key_states[Button_Code.L].stop_pressed = now;
-				case #char "M"; key_states[Button_Code.M].stop_pressed = now;
-				case #char "N"; key_states[Button_Code.N].stop_pressed = now;
-				case #char "O"; key_states[Button_Code.O].stop_pressed = now;
-				case #char "P"; key_states[Button_Code.P].stop_pressed = now;
-				case #char "Q"; key_states[Button_Code.Q].stop_pressed = now;
-				case #char "R"; key_states[Button_Code.R].stop_pressed = now;
-				case #char "S"; key_states[Button_Code.S].stop_pressed = now;
-				case #char "T"; key_states[Button_Code.T].stop_pressed = now;
-				case #char "U"; key_states[Button_Code.U].stop_pressed = now;
-				case #char "V"; key_states[Button_Code.V].stop_pressed = now;
-				case #char "W"; key_states[Button_Code.W].stop_pressed = now;
-				case #char "X"; key_states[Button_Code.X].stop_pressed = now;
-				case #char "Y"; key_states[Button_Code.Y].stop_pressed = now;
-				case #char "Z"; key_states[Button_Code.Z].stop_pressed = now;
-
-				case VK_LBUTTON; key_states[Button_Code.MOUSE_LEFT ].stop_pressed = now;
-				case VK_RBUTTON; key_states[Button_Code.MOUSE_RIGHT].stop_pressed = now;
-				case VK_F1;  key_states[Button_Code.F1] .stop_pressed = now;
-				case VK_F2;  key_states[Button_Code.F2] .stop_pressed = now;
-				case VK_F3;  key_states[Button_Code.F3] .stop_pressed = now;
-				case VK_F4;  key_states[Button_Code.F4] .stop_pressed = now;
-				case VK_F5;  key_states[Button_Code.F5] .stop_pressed = now;
-				case VK_F6;  key_states[Button_Code.F6] .stop_pressed = now;
-				case VK_F7;  key_states[Button_Code.F7] .stop_pressed = now;
-				case VK_F8;  key_states[Button_Code.F8] .stop_pressed = now;
-				case VK_F9;  key_states[Button_Code.F9] .stop_pressed = now;
-				case VK_F10; key_states[Button_Code.F10].stop_pressed = now;
-				case VK_F11; key_states[Button_Code.F11].stop_pressed = now;
-				case VK_F12; key_states[Button_Code.F12].stop_pressed = now;
-			};
-			result = 0;
-			mutex_release(window_info.input_mutex);
-			
+			key_Up(window_info, u_message, wparam, lparam);
 		case WM_CHAR;
 			// https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-char
 			result = 0;
@@ -829,3 +689,4 @@ WM_ACTIVATE :: 0x0006;
 #import "Platform_Interface";
 
 #load "threading.jai";
+#load "input.jai";

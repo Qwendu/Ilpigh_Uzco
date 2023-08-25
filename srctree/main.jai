@@ -235,12 +235,8 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 			}
 		}
 
-
-
 		draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);
 		clear_Instances(draw_buffer);
-
-
 		platform.sleep(ms_pause);
 	}
 
