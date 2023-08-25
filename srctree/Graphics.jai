@@ -196,7 +196,7 @@ add_Light_Source :: (buffer : *Draw_Buffer, light : Light_Source)
 
 }
 
-add_Mesh :: (buffer : *Draw_Buffer, instance : Model_Instance)
+instance_Mesh :: (buffer : *Draw_Buffer, instance : Mesh_Instance)
 {
 	using buffer;
 	if n_instances < instances.count
@@ -221,49 +221,9 @@ add_Line :: (buffer : *Draw_Buffer, start : float3, end : float3, color : Color)
 }
 
 
-get_Mesh_ID :: (mesh_path : Mesh_Path) -> Mesh_ID
-{
-	{
-		map := acquire(*Mesh_Manager.mesh_path_id_map);
-		defer  release(*Mesh_Manager.mesh_path_id_map);
-		for map.*
-		{
-			if it.path == mesh_path  return it.id;
-		}
-	}
-	return register_Mesh(mesh_path);
-}
-
-get_Mesh :: (mesh_id : Mesh_ID) -> *Mesh
-{
-	if mesh_id < 0  return null;
-	
-	loaded_meshes := acquire(*Mesh_Manager.loaded_meshes);
-	defer release(*Mesh_Manager.loaded_meshes);
-	return get(loaded_meshes, cast(int) mesh_id);
-}
-
-register_Mesh :: (path : Mesh_Path) -> Mesh_ID
-{
-	log("Registering Mesh '%'", path);
-	id : Mesh_ID;
-	{
-		loaded_meshes := acquire(*Mesh_Manager.loaded_meshes);
-		defer            release(*Mesh_Manager.loaded_meshes);
-		id = cast(Mesh_ID) get_Slot(loaded_meshes);
-	}
-	{
-		map := acquire(*Mesh_Manager.mesh_path_id_map);
-		defer  release(*Mesh_Manager.mesh_path_id_map);
-		array_add(map, .{id = id, path = path});
-	}
-	return id;
-}
 
 
 
-Mesh_ID   :: #type,distinct int;
-Mesh_Path :: #type,distinct string;
 
 clear_Instances :: (draw_buffer : *Draw_Buffer)
 {
@@ -272,32 +232,19 @@ clear_Instances :: (draw_buffer : *Draw_Buffer)
 	draw_buffer.n_lines = 0;
 }
 
-Model_Instance :: struct
+Mesh_Instance :: struct
 {
 	id : Mesh_ID;
-	model_to_world : float4x4;
+	mesh_to_world : float4x4;
 };
 
 #scope_module
-
-set_Mesh :: (mesh_id : Mesh_ID, mesh : Mesh)
-{
-	loaded_meshes := acquire(*Mesh_Manager.loaded_meshes);
-	defer            release(*Mesh_Manager.loaded_meshes);
-	set(loaded_meshes, cast(int) mesh_id, mesh);
-}
-
-
 
 draw_logger :: (message : string, data : *void, info : Log_Info)
 {
 	now := current_time_monotonic() - context.STARTUP_TIME;
 	print("[RENDER]+%: %\n", to_milliseconds(now), message);
 }
-
-
-
-
 
 Line :: struct
 {
@@ -312,7 +259,7 @@ Draw_Buffer :: struct
 	mouse_position_relative_to_top_left : int2;
 	
 	n_instances : int;
-	instances  : [600] Model_Instance;
+	instances  : [600] Mesh_Instance;
 
 	n_light_sources : int;
 	light_sources : [20] Light_Source;
@@ -321,16 +268,6 @@ Draw_Buffer :: struct
 	lines   : [8000] Line;
 
 	camera : Camera;
-};
-
-
-loaded_meshes_mutexed : Mutex([..] Mesh);
-//mesh_id_map : Hash_Table(Mesh_Path, Mesh_ID);
-
-Mesh_Manager : struct
-{
-	loaded_meshes    : Mutex(PredicatedAutoArray(Mesh));
-	mesh_path_id_map : Mutex([..] struct {path : Mesh_Path; id : Mesh_ID;});
 };
 
 
@@ -349,6 +286,7 @@ screen2 :: Vector(2, s32 /*fixed_point 26.6*/);
 
 #load "Graphics/Rasterizer.jai";
 #load "Graphics/Shaders.jai";
+#load "Graphics/Mesh_Loader.jai";
 
 
 Profiler :: #import "Tracy";

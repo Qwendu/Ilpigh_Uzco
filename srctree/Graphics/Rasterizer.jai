@@ -1,4 +1,4 @@
-#scope_export
+#scope_module
 
 setup_Buffers :: ()
 {
@@ -123,8 +123,8 @@ render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 				continue;
 			}
 			corners_mesh  :=  aabb_To_Corners(mesh.aabb);
-			instance_to_world      := instance.model_to_world;
-			instance_to_projection := world_to_projection * instance.model_to_world;
+			instance_to_world      := instance.mesh_to_world;
+			instance_to_projection := world_to_projection * instance.mesh_to_world;
 			n_outside := 0;
 
 			for corners_mesh

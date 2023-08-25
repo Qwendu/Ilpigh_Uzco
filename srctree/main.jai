@@ -210,29 +210,6 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		// Scene
 		//
 		{
-			mat := identity(4, float);
-			//add_Mesh(draw_buffer, .{id = 3, model_to_world = mat});
-
-			floor_tile := Model_Instance.{id = 2, model_to_world = identity(4, float)};
-			EXTENT :: 1;
-			for y: 0..EXTENT
-			{
-				for x: 0..EXTENT
-				{
-					offset := float3.{xx (x - 1),xx (y - 1), -1};
-					model_to_world_matrix := add_Offset(mat, offset);
-					floor_tile.model_to_world = model_to_world_matrix;
-					//add_Mesh(draw_buffer, floor_tile);
-				}
-			}
-
-			instance_1 := Model_Instance.{id = 0, model_to_world = mat};
-			instance_2 := Model_Instance.{id = 1, model_to_world = identity(4, float)};
-			//add_Mesh(draw_buffer, instance_1);
-			//add_Mesh(draw_buffer, instance_2);
-			//add_Offset(*instance_1.model_to_world, .{y = -0.1 ,z = -2});
-			//add_Mesh(draw_buffer, instance_1);
-
 			p1 := float3.{-2,  2, 0};
 			add_Light_Source(draw_buffer, .{position = p1, range = 10, color = .{1,1,1,1}});
 			gizmo_At(p1);
@@ -248,7 +225,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 			for *< Physics_Objects_Iterator(.TETRAEDER).{}
 			{
 				o := it;
-				add_Mesh(draw_buffer, .{get_Mesh_ID("tet"), add_Offset(id, o.translation.position)});
+				instance_Mesh(draw_buffer, .{get_Mesh_ID("tet"), add_Offset(id, o.translation.position)});
 				add_Line(draw_buffer, o.shape.vertices[0] + o.translation.position, o.shape.vertices[1] + o.translation.position, RED);
 				add_Line(draw_buffer, o.shape.vertices[0] + o.translation.position, o.shape.vertices[2] + o.translation.position, RED);
 				add_Line(draw_buffer, o.shape.vertices[0] + o.translation.position, o.shape.vertices[3] + o.translation.position, RED);
