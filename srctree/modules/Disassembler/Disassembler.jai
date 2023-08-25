@@ -1,5 +1,5 @@
 #scope_export
-#module_parameters(ENABLE :bool = false);
+#module_parameters(ENABLE :bool = true);
 
 Plugin :: struct
 {
@@ -20,10 +20,9 @@ Disassembled_Procedure :: struct
 
 
 
-get_plugin :: (w : Workspace) -> *Jai.Metaprogram_Plugin
+get_plugin :: () -> *Jai.Metaprogram_Plugin
 {
 	plug := New(Plugin);
-	plug.workspace = w;
 	plug.message = xx message;
 	plug.finish = xx finish;
 
@@ -130,6 +129,7 @@ message :: (using plugin : *Plugin, msg : *Jai.Message)
 					if note.text == "Disassemble"
 					{
 						array_add(*procedures_to_disassemble, .{name = it.expression.name});
+						log("Processing procedure %", it.expression.name);
 						break it;
 					}
 

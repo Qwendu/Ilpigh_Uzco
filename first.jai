@@ -124,7 +124,8 @@ DUMP_STATE_FROM_SECONDS_AGO : int : 3;
 	compile :: (workspace : Workspace, $main_file : string, plugins : [] string) -> bool #expand
 	{
 		Jai.compiler_begin_intercept(workspace);
-		disassembler := Disassembler.get_plugin(workspace);
+		disassembler := Disassembler.get_plugin();
+		disassembler.workspace = workspace;
 
 		Jai.add_build_file(main_file, workspace);
 

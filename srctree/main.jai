@@ -35,7 +35,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		startup_time = context.STARTUP_TIME,
 		c            = *context
 	};
-	platform.start_Thread(xx draw, *args);
+	platform.start_Thread(xx render_Thread, *args);
 	platform.register_Diagnostic(diagnostics_For_Physics);
 	
 
@@ -179,8 +179,11 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 					rot = mouse_delta * 1.0;
 					rot.y *= -1;
 				}
-				camera_pitch_yaw += rot * DELTA;
-				camera_pitch_yaw.y = clamp(camera_pitch_yaw.y, -PI/2, PI/2);
+				if is_Button_Pressed(*input, .MOUSE_LEFT)
+				{
+					camera_pitch_yaw += rot * DELTA;
+					camera_pitch_yaw.y = clamp(camera_pitch_yaw.y, -PI/2, PI/2);
+				}
 			}
 			pitch := rotation_Around_Axis(.{-1,0,0}, camera_pitch_yaw.y);
 			yaw   := rotation_Around_Axis(.{0,1,0},  camera_pitch_yaw.x);
@@ -238,220 +241,14 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		//
 		// Physics
 		//
-
+		if true
 		{
 			tick_Physics(30);
-
-
-			for objects  if length_Squared(it.translation.position) > 100
-			{
-				reset_Physics();
-				break;
-			}
-			
-			for *o, i: objects
-			{
-				o.translation.velocity += o.translation.acceleration * dt;
-				//gizmo_At(o.translation.position);!
-			}
-			collision_pairs : [..] struct {
-				a : int;
-				b : int;
-				time : float;
-				a_point : float3;
-				b_point : float3;
-				normal : float3;
-			};
-			array_reserve(*collision_pairs, objects.count * objects.count - 1);
-			defer array_free(collision_pairs);
-
-
-			if DO_PHYSICS_STEP
-			{
-			current_time : float = 0;
-
-			collision_Detection :: (a : int, b : int) -> bool #expand
-			{
-				a_ptr := *objects[a];
-				b_ptr := *objects[b];
-
-				time, colliding, active_point, colliding_with_point, normal := cast_Tetraeder(a_ptr, b_ptr, dt);
-				time += current_time;
-				if colliding && time < dt
-				{
-					array_add(*collision_pairs, .{
-						a = a,
-						b = b, 
-						time = time,
-						a_point = active_point, 
-						b_point = colliding_with_point, 
-						normal = normal,
-					});
-					//log("Collision in % seconds", time);
-					return true;
-				}
-				return false;
-			}
-			
-			
-			//log("O(n^2) Collision checking loop:");
-			for active_idx : 0..objects.count-1
-			{
-				active := *objects[active_idx];
-				active.local_time = 0;
-
-				//add_Line(draw_buffer, active.start, active.end, GREEN);
-				for colliding_with_idx : active_idx+1..objects.count-1
-				{
-					collision_Detection(active_idx,colliding_with_idx);
-				}
-			}
-
-			
-			for collision_pairs
-			{
-				a := *objects[it.a];
-				b := *objects[it.b];
-				a_col := a.translation.position + it.time * a.translation.velocity;
-				b_col := b.translation.position + it.time * b.translation.velocity;
-				//add_Line(draw_buffer, a.translation.position, a_col, BLUE);
-				//add_Line(draw_buffer, b.translation.position, b_col, GREEN);
-				//add_Line(draw_buffer, a_col, b_col, RED);
-			}
-			cmp :: (a : type_of(collision_pairs.data[0]), b : type_of(a)) -> s64
-			{
-				delta := a.time - b.time;
-				if delta > 0  return  1;
-				if delta < 0  return -1;
-				return 0;
-			}
-			quick_sort(collision_pairs, cmp);
-
-
-			advance_In_Time_To_No_Collision :: (obj : * PO, time : float) #expand
-			{
-
-				assert(time >= current_time);
-				assert(obj.local_time <= time);
-
-				delta_time := time - obj.local_time;
-
-
-				distance_traveled := delta_time * (obj.translation.velocity);
-				//if DO_PHYSICS_STEP  log("% -> %, +%", obj.local_time,time, delta_time);
-				obj.local_time = time;
-				if DO_PHYSICS_STEP  obj.translation.position += distance_traveled;
-			}
-			FOLLOW_UP_COLLISIONS := 0;
-
-			for collision_pairs
-			{
-				N_COLLISIONS += 1;
-				
-				a := *objects[it.a];
-				b := *objects[it.b];
-
-				// Note(Qwendo): Sometimes we seem to be having issues with numerical stability
-				//   I think it would be good to revise the cast_Tetraeder Function at a later date
-				//   with regards to numerical stability
-				//   once we implement moving the physics origin to keep precision!
-				// Before then this seems to be good enough
-				
-				draw_Tet :: (a : float3, b : float3, c : float3, d : float3, color : Color) #expand
-				{
-					add_Line(draw_buffer, a, b, color);
-					add_Line(draw_buffer, a, c, color);
-					add_Line(draw_buffer, a, d, color);
-
-					add_Line(draw_buffer, b, c, color);
-					add_Line(draw_buffer, b, d, color);
-
-					add_Line(draw_buffer, c, d, color);
-				}
-
-				
-
-				
-				assert(it.time >= current_time);
-				advance_In_Time_To_No_Collision(a, it.time);
-				advance_In_Time_To_No_Collision(b, it.time);
-				current_time = it.time;
-
-				world_col_a := it.a_point;
-				world_col_b := it.b_point;
-
-				direction := normalize(it.normal, .{}); @@Direction_Used_For_Plastic_Collision
-				array_add(*persistent_lines, .{world_col_b, world_col_b + direction * 0.1});
-				
-
-				a_vel_in_direction := dot(a.translation.velocity, direction);
-				a.translation.velocity -= direction * a_vel_in_direction;
-
-				b_vel_in_direction := dot(b.translation.velocity, direction);
-				b.translation.velocity -= direction * b_vel_in_direction;
-				array_add(*collision_points, a.translation.position + direction * a.bounding_sphere_radius);
-
-				combined_mass := a.mass + b.mass;
-
-				a_vel_in_direction_after := (a.mass - b.mass)/combined_mass * a_vel_in_direction + 2 * b.mass/combined_mass * b_vel_in_direction;
-				b_vel_in_direction_after := 2 * a.mass/combined_mass * a_vel_in_direction + (b.mass - a.mass)/combined_mass * b_vel_in_direction;
-
-				a_change := direction * a_vel_in_direction_after;
-				b_change := direction * b_vel_in_direction_after;
-				a.translation.velocity += a_change;
-				b.translation.velocity += b_change; 
-
-				added_collision : bool;
-				for * o, oi: objects
-				{
-					if oi != it.a && oi != it.b
-					{
-						added_collision |= collision_Detection(it.a, oi);
-						added_collision |= collision_Detection(it.b, oi);
-					}
-				}
-				if added_collision
-				{
-					quick_sort(collision_pairs, cmp);
-				}
-			}
-
-
-
-			for * objects
-			{
-				advance_In_Time_To_No_Collision(it, dt);
-			}
-
-
-			
-
-			//if DO_PHYSICS_STEP && FOLLOW_UP_COLLISIONS  log("Number of follow up collisions %", FOLLOW_UP_COLLISIONS);
-
-			} // if DO_PHYSICS_STEP
-
-			for persistent_lines
-			{
-				add_Line(draw_buffer, it.start, it.end, YELLOW);
-			}
-
 			id := identity(4, float);
-			for * o : objects
-			{
-				add_Mesh(draw_buffer, .{get_Mesh_ID("tet"), add_Offset(id, o.translation.position)});
-				//gizmo_At(o.translation.position);
-
-				add_Line(draw_buffer, o.translation.position, o.translation.position + o.translation.velocity * dt, RED);
-				add_Line(draw_buffer, o.tet[0] + o.translation.position, o.tet[1] + o.translation.position, GREY);
-				add_Line(draw_buffer, o.tet[0] + o.translation.position, o.tet[2] + o.translation.position, GREY);
-				add_Line(draw_buffer, o.tet[0] + o.translation.position, o.tet[3] + o.translation.position, GREY);
-				add_Line(draw_buffer, o.tet[1] + o.translation.position, o.tet[2] + o.translation.position, GREY);
-				add_Line(draw_buffer, o.tet[1] + o.translation.position, o.tet[3] + o.translation.position, GREY);
-				add_Line(draw_buffer, o.tet[2] + o.translation.position, o.tet[3] + o.translation.position, GREY);
-			}
 			for *< Physics_Objects_Iterator(.TETRAEDER).{}
 			{
 				o := it;
+				add_Mesh(draw_buffer, .{get_Mesh_ID("tet"), add_Offset(id, o.translation.position)});
 				add_Line(draw_buffer, o.shape.vertices[0] + o.translation.position, o.shape.vertices[1] + o.translation.position, RED);
 				add_Line(draw_buffer, o.shape.vertices[0] + o.translation.position, o.shape.vertices[2] + o.translation.position, RED);
 				add_Line(draw_buffer, o.shape.vertices[0] + o.translation.position, o.shape.vertices[3] + o.translation.position, RED);
@@ -462,11 +259,6 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		}
 
 
-
-
-
-
-		
 
 		draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);
 		clear_Instances(draw_buffer);

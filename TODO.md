@@ -8,11 +8,13 @@
 
 # Systems
 - [ ] Mesh Loader
+	- [ ] 
 - [ ] Hot Swapping
 - [ ] Rendering
 	- [x] Triangle Rasterization
 	- [x] Jai Shaders
 	- [ ] Font Rendering
+	- [ ] Radiance Cascades?
 - [ ] Add custom context for the platform layer
 - [ ] Memory Allocators for Graphics Subsystem
 	- [x] Large Page support
@@ -37,3 +39,4 @@
 	- [ ] Analysis of disassembled procedures
 	- [ ] Analysis of procedures
 	- [ ] Pre/Post-Conditions assert(...) and defer assert(...) respectively static analysis
+	- [ ] Thread Specific Reachability
