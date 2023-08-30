@@ -387,7 +387,6 @@ handling_a_crash_right_now := false;
 recover_dump :: () #c_call
 {
 	// pause all threads
-	
 }
 
 dump :: () #c_call
@@ -396,7 +395,7 @@ dump :: () #c_call
 	ctx : Context = create_Diagnostic_Context("WINDOWS", *log_file_builder);
 	push_context,defer_pop ctx;
 	
-	path_of_crash_dump := sprint("./dump_%/", to_milliseconds(current_time_monotonic()));
+	path_of_crash_dump := sprint("./dumps/dump_%/", to_milliseconds(current_time_monotonic()));
 	if make_directory_if_it_does_not_exist(path_of_crash_dump)
 	{
 		

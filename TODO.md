@@ -2,7 +2,7 @@
 
 - [ ] Add Annotation Assertions like ``@"assert(buffer.count == allocated.width * allocated.height)"`` 
 
-- [ ] Refactor windows input from if statements to a simple table lookup!
+- [x] Refactor windows input from if statements to a simple table lookup!
 - [ ] Figure out how to stop all threads and load from a dump folder
 
 
