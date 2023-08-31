@@ -6,12 +6,11 @@ GAMMA : float : 2.2;
 
 Draw_Args :: struct
 {
-	exit: *int;
-	c   : *Context;
-	window : Window;
+	exit         : *int;
+	draw_context : Context;
+	window       : Window;
 	startup_time : Apollo_Time;
-
-	output : *Output;
+	output       : *Output;
 };
 
 
@@ -27,10 +26,8 @@ render_Thread :: (args :*Draw_Args) #c_call
 {
 	Profiler.NameThread(#procedure_name());
 
-	draw_context := Context.{};
-	draw_context.STARTUP_TIME = args.startup_time;
-	draw_context.logger = draw_logger;
-	push_context,defer_pop draw_context;
+		
+	push_context,defer_pop args.draw_context;
 	output : Output;
 	
 	command_reader, command_writer := get_Ends(*command_buffer);

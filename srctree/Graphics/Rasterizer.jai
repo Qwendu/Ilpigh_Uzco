@@ -469,7 +469,7 @@ render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 		}
 		Profiler.Plot("Pixel Shader Calls", actual_shader_calls);
 	}
-} @OnlyInThread(render_Thread)
+} @OnlyInThread(render_Thread) @Disassemble(Rasterizer.asm)
 
 #scope_file
 

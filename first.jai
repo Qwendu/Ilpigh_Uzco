@@ -10,8 +10,8 @@ modules          :: "srctree/modules";
 build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 {
 	log("Backend = %", ifx BACKEND_X64 then "X64" else "LLVM");
-	//OPTIMIZATION : Jai.Optimization_Type:  .VERY_OPTIMIZED;
-	OPTIMIZATION : Jai.Optimization_Type:  .DEBUG;
+	OPTIMIZATION : Jai.Optimization_Type:  .VERY_OPTIMIZED;
+	//OPTIMIZATION : Jai.Optimization_Type:  .DEBUG;
 	log("Optimization = %", OPTIMIZATION);
 
 	OPTIMIZING_BUILD := (OPTIMIZATION == Jai.Optimization_Type.OPTIMIZED || OPTIMIZATION == .VERY_OPTIMIZED);

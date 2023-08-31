@@ -27,14 +27,19 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 	push_context,defer_pop c;
 
+	draw_context := context;
+	{
+		
+	}
 	
 	draw_thread_exit : int = 0;
 	args := Draw_Args.{
 		exit         = *draw_thread_exit,
 		window       = platform_init.window,
 		startup_time = context.STARTUP_TIME,
-		c            = *context
+		draw_context = draw_context
 	};
+
 	platform.start_Thread(xx render_Thread, *args);
 	platform.register_Diagnostic(diagnostics_For_Physics);
 	
