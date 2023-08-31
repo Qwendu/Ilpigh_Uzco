@@ -22,6 +22,27 @@ mutex_release :: (mutex : int) #c_call
 CreateMutexA :: (security : *void, initially_owned : bool, name : *u8) -> HANDLE #foreign kernel;
 ReleaseMutex :: (handle : HANDLE) -> s32 #foreign kernel;
 
+
+all_semaphores : Static_Auto_Array(100, HANDLE);
+
+semaphore_create :: (count : int) -> int #c_call
+{
+	handle := CreateSemaphoreW(null, cast(s32)count, cast(s32)count, null);
+	array_add_c_call(*all_semaphores, handle);
+	return all_semaphores.count - 1;
+}
+
+semaphore_acquire :: (semaphore: int) -> void #c_call
+{
+	WaitForSingleObject(all_semaphores.data[semaphore], INFINITE);
+}
+
+semaphore_release :: (semaphore: int) -> void #c_call
+{
+	ReleaseSemaphore(all_semaphores.data[semaphore], 1, null);
+}
+
+
 #import "Static_Auto_Array";
 
 
