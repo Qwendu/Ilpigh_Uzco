@@ -33,7 +33,11 @@ main :: ()
 	}
 
 	game := load_Game_Code(Config.Game_DLL_Name);
-
+	if !game
+	{
+		log_error("Failed to load game");
+		return;
+	}
 	start_Thread(xx game, *platform_context);
 	
 	while true
@@ -58,12 +62,16 @@ load_Game_Code :: ($dll_name : string) -> ENTRY_FUNCTION
 {
 	#if Config.COMPILATION_MODE == .DEVELOPEMENT
 	{
-		print("Attempting to load from \"%\"\n", dll_name);
+		log("Attempting to load from \"%\"", dll_name);
 		lib := load_Dynamic_Library(dll_name);
-		return cast(Config.ENTRY_FUNCTION) load_Function(*lib, Config.ENTRY_FUNCTION_NAME);
+		if !lib 
+		{
+			log_error("Failed to load %", dll_name);
+			return null;
+		}
+		return cast(Config.ENTRY_FUNCTION) load_Function(lib, Config.ENTRY_FUNCTION_NAME);
 	}else{
 		print("We are in release mode, so we do not load from a dll\n");
-		assert(false, "This has not been done yet");
 		return null;
 	}
 }

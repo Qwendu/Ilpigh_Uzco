@@ -211,14 +211,38 @@ Bitmap :: struct
 
 DLL :: struct
 {
-	name : *u16;
-	module : HMODULE;
+	name            : string;
+	file_name       : string;
+	file_name_utf16 : *u16;
+	module          : HMODULE;
 }
 
-load_Dynamic_Library :: (dll_name : string) -> DLL
+loaded_dlls : Static_Auto_Array(20, DLL);
+
+load_Dynamic_Library :: (dll_name : string) -> *DLL
 {
-	dll := DLL.{name = utf8_to_wide(dll_name)};
-	dll.module = LoadLibraryW(dll.name);
+	for * loaded_dlls
+	{
+		if it.name == dll_name
+		{
+			log("Attempting to reload %", it.name);
+			log_error("failed to laod %", it.name);
+			return it;
+		}
+	}
+	dll := array_add(*loaded_dlls);
+	dll.name = sprint("%", dll_name);
+	file_name_original := tprint("%.dll", dll_name);
+	dll.file_name = sprint("%_tmp.dll", dll_name);
+	dll.file_name_utf16 = utf8_to_wide(dll.file_name);
+	succ := copy_file(file_name_original, dll.file_name);
+	if !succ 
+	{
+		log_error("Failed to copy % into temporary file %", file_name_original, dll.file_name);
+		return null;
+	}
+	dll.module = LoadLibraryW(dll.file_name_utf16);
+
 	if !dll.module
 	{
 		err := GetLastError();
@@ -689,3 +713,4 @@ WM_ACTIVATE :: 0x0006;
 
 #load "threading.jai";
 #load "input.jai";
+#import "File_Utilities";

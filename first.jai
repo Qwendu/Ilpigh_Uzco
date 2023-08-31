@@ -121,7 +121,7 @@ DUMP_STATE_FROM_SECONDS_AGO : int : 3;
 	}
 
 
-	compile :: (workspace : Workspace, $main_file : string, plugins : [] string) -> bool #expand
+	compile :: (workspace : Workspace, $main_file : string, plugins : [] string = .[]) -> bool #expand
 	{
 		Jai.compiler_begin_intercept(workspace);
 		disassembler := Disassembler.get_plugin();
@@ -134,6 +134,15 @@ DUMP_STATE_FROM_SECONDS_AGO : int : 3;
 		{
 			msg := Jai.compiler_wait_for_message();
 			disassembler.message(disassembler, msg);
+			if msg.kind == .PHASE
+			{
+				phase := cast(*Jai.Message_Phase)msg;
+				if phase.phase == .POST_WRITE_EXECUTABLE
+				{
+					success &= phase.linker_exit_code == 0;
+					if !success  log("Linker exited with Code %", phase.linker_exit_code);
+				}
+			}
 			if msg.kind == .COMPLETE 
 			{
 				success &= (cast(*Jai.Message_Complete)msg).error_code == .NONE;
@@ -144,8 +153,12 @@ DUMP_STATE_FROM_SECONDS_AGO : int : 3;
 		Jai.compiler_end_intercept(workspace);
 		return success;
 	}
-	if !compile(workspace_platform, "srctree/platform/platform_main.jai", .[])  return false;
-	if !compile(workspace_game    , "srctree/main.jai", .[]) return false;
+	if !compile(workspace_game    , "srctree/main.jai") return false;
+	if !compile(workspace_platform, "srctree/platform/platform_main.jai")
+	{
+		log("Could not write to platform layer!");
+	}
+	
 	return true;
 }
 
