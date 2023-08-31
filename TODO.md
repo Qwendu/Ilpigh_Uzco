@@ -2,7 +2,7 @@
 
 - [ ] Add Annotation Assertions like ``@"assert(buffer.count == allocated.width * allocated.height)"`` 
 
-- [x] Refactor windows input from if statements to a simple table lookup!
+
 - [ ] Figure out how to stop all threads and load from a dump folder
 
 
@@ -19,7 +19,6 @@
 - [ ] Memory Allocators for Graphics Subsystem
 	- [x] Large Page support
 	- [ ] Arena Allocators
-- [ ] Load Meshes
 - [ ] Physics
 	- [x] Line Drawing for Debugging
 	- [ ] Primitives
@@ -40,3 +39,9 @@
 	- [ ] Analysis of procedures
 	- [ ] Pre/Post-Conditions assert(...) and defer assert(...) respectively static analysis
 	- [ ] Thread Specific Reachability
+
+
+
+DONE:
+
+- [x] Refactor windows input from if statements to a simple table lookup!

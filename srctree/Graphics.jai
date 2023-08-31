@@ -235,21 +235,6 @@ Mesh_Instance :: struct
 	mesh_to_world : float4x4;
 };
 
-#scope_module
-
-draw_logger :: (message : string, data : *void, info : Log_Info)
-{
-	now := current_time_monotonic() - context.STARTUP_TIME;
-	print("[RENDER]+%: %\n", to_milliseconds(now), message);
-}
-
-Line :: struct
-{
-	start : float3;
-	end   : float3;
-	color : Color;
-}
-
 Draw_Buffer :: struct
 {
 	submission_time : Apollo_Time;
@@ -266,6 +251,22 @@ Draw_Buffer :: struct
 
 	camera : Camera;
 };
+
+Line :: struct
+{
+	start : float3;
+	end   : float3;
+	color : Color;
+}
+
+#scope_module
+
+draw_logger :: (message : string, data : *void, info : Log_Info)
+{
+	now := current_time_monotonic() - context.STARTUP_TIME;
+	print("[RENDER]+%: %\n", to_milliseconds(now), message);
+}
+
 
 
 

@@ -225,7 +225,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		//
 		if true
 		{
-			tick_Physics(30);
+			tick_Physics(30, draw_buffer);
 			id := identity(4, float);
 			for *< Physics_Objects_Iterator(.TETRAEDER).{}
 			{

@@ -134,78 +134,39 @@ TETRAEDER_DEFAULT :: Shape(.TETRAEDER).
 	],
 };
 
-
-// TODO: Add allocator for Physics
-pending_collisions : [..] Pending_Collision;
-
-
-tick_Physics :: (dt : float)
+AABB :: struct
 {
-	//log("Resolving for:");
-	//log("\tSpheres   %", physics_state.spheres.count);
-	//log("\tTetraeder %", physics_state.tetraeder.count);
-	maybe_collision : Pending_Collision = ---;
-	resolved_up_to_time : float = 0;
+	min : float3;
+	max : float3;
+};
 
+draw_AABB :: (using aabb : AABB) #expand
+{
+	add_Line(`draw_buffer, min, .{min.x, min.y, max.z}, BLUE);
+	add_Line(`draw_buffer, min, .{min.x, max.y, min.z}, BLUE);
+	add_Line(`draw_buffer, min, .{max.x, min.y, min.z}, BLUE);
 
+	add_Line(`draw_buffer, max, .{max.x, max.y, min.z}, BLUE);
+	add_Line(`draw_buffer, max, .{max.x, min.y, max.z}, BLUE);
+	add_Line(`draw_buffer, max, .{min.x, max.y, max.z}, BLUE);
 
-	for first : 0..physics_state.spheres.count-1
-	{
-		first_id := mangle_Physics_ID(.SPHERE, first);
-		first_sphere := *physics_state.spheres[first];
-		maybe_collision.a = first_id;
+	add_Line(`draw_buffer, .{min.x, max.y, max.z}, .{min.x, min.y, max.z}, BLUE);
+	add_Line(`draw_buffer, .{max.x, min.y, max.z}, .{min.x, min.y, max.z}, BLUE);
 
-		for second : first+1..physics_state.spheres.count-1
-		{
-			second_id := mangle_Physics_ID(.SPHERE, second);
-			second_sphere := *physics_state.spheres[second];
-			maybe_collision.b = second_id;
-			maybe_collision.time, collision :, maybe_collision.a_point, maybe_collision.b_point, maybe_collision.normal = cast_Bounding_Sphere(first_sphere, second_sphere, dt);
-			if collision
-			{
-				array_add(*pending_collisions, maybe_collision);
-			}
-		}
-		for second : 0..physics_state.tetraeder.count-1
-		{
-			second_id := mangle_Physics_ID(.TETRAEDER, second);
-			second_tetraeder := *physics_state.tetraeder[second];
-			maybe_collision.b = second_id;
-			maybe_collision.time, collision :, maybe_collision.a_point, maybe_collision.b_point, maybe_collision.normal = cast_Bounding_Sphere_Tetraeder(first_sphere, second_tetraeder, dt);
-			if collision
-			{
-				array_add(*pending_collisions, maybe_collision);
-			}
-		}
-	}
+	add_Line(`draw_buffer, .{min.x, max.y, max.z}, .{min.x, max.y, min.z}, BLUE);
+	add_Line(`draw_buffer, .{max.x, max.y, min.z}, .{min.x, max.y, min.z}, BLUE);
 
-	for first : 0..physics_state.tetraeder.count-1
-	{
-		first_id := mangle_Physics_ID(.TETRAEDER, first);
-		first_tetraeder := *physics_state.tetraeder[first];
-		maybe_collision.a = first_id;
+	add_Line(`draw_buffer, .{max.x, min.y, max.z}, .{max.x, min.y, min.z}, BLUE);
+	add_Line(`draw_buffer, .{max.x, max.y, min.z}, .{max.x, min.y, min.z}, BLUE);
+}
 
-		for second : first+1..physics_state.tetraeder.count-1
-		{
-			second_id := mangle_Physics_ID(.TETRAEDER, second);
-			second_tetraeder := *physics_state.tetraeder[second];
-			maybe_collision.b = second_id;
-			maybe_collision.time, collision :, maybe_collision.a_point, maybe_collision.b_point, maybe_collision.normal = cast_Tetraeder(first_tetraeder, second_tetraeder, dt);
-			if collision
-			{
-				array_add(*pending_collisions, maybe_collision);
-			}
-		}
-	}
-
-
+tick_Physics :: (dt : float, draw_buffer : *Draw_Buffer)
+{
+	a := AABB.{.{}, .{1,2,3}};
+	draw_AABB(a);
 
 	physics_state.time += microseconds_to_apollo(xx (dt * 1000 * 1000));
-	//log_error("% Unresolved Collisions at time %", pending_collisions.count, to_milliseconds(physics_state.time));
 	append_State();
-
-
-	pending_collisions.count = 0;
 }
 
 
@@ -698,3 +659,4 @@ for_expansion :: (p : Physics_Objects_By_ID, code : Code, flags : For_Flags) #ex
 #import "Basic";
 #import "Static_Auto_Array";
 #import "Ring_Buffer";
+#import "Color";
