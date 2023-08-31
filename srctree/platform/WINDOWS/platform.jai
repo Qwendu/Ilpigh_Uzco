@@ -24,8 +24,7 @@ Window_Info :: struct
 	
 	
 
-	input_mutex : int;
-	input : Input;
+	input : Mutex(Input);
 
 	exit           : bool; @Atomic;
 	clear_input    : bool; @Atomic;
@@ -345,13 +344,16 @@ get_Input :: (window : Window) -> Input #c_call
 {
 	win := cast(*Window_Info)window;
 	push_context,defer_pop win.window_context;
-	mutex_acquire(win.input_mutex);
-	res := win.input;
+	res : Input;
+	{
+		input := acquire(*win.input);
+		defer    release(*win.input, input);
+		res = input.*;
 
-	win.input.mouse.delta = .{};
-	win.input.last_retrieval_time = current_time_monotonic();
+		input.mouse.delta = .{};
+		input.last_retrieval_time = current_time_monotonic();
+	}
 
-	mutex_release(win.input_mutex);
 	return res;
 }
 
@@ -714,3 +716,4 @@ WM_ACTIVATE :: 0x0006;
 #load "threading.jai";
 #load "input.jai";
 #import "File_Utilities";
+#import "Mutex";

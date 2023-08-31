@@ -1,6 +1,24 @@
 STARTUP_TIME : Apollo_Time;
+
 main :: ()
 {
+	platform = Platform_Calls.{
+		general_heap   = context.allocator,
+		start_Thread   = xx start_Thread,
+		stop\_Thread   = xx stop\_Thread,
+		update_Window  = xx update_Window,
+		get_BackBuffer = xx get_BackBuffer,
+		get_Input      = xx get_Input,
+		sleep          = xx sleep,
+		allocate_Large = xx allocate_Large_Page,
+		register_Diagnostic = xx register_Diagnostic,
+		dump           = xx dump,
+		mutex_create  = mutex_create,
+		mutex_acquire = mutex_acquire,
+		mutex_release = mutex_release,
+	};
+
+
 	Profiler.NameThread(#procedure_name());
 	Profiler.AppInfo(Config.Profiler_Info);
 
@@ -14,22 +32,7 @@ main :: ()
 		platform_context.STARTUP_TIME = STARTUP_TIME;
 		platform_context.window = cast(Window) create_Window("Ilpigh Uzco", .{800, 600});
 		platform_context.exit = 0;
-		platform_calls := Platform_Calls.{
-			general_heap   = context.allocator,
-			start_Thread   = xx start_Thread,
-			stop\_Thread   = xx stop\_Thread,
-			update_Window  = xx update_Window,
-			get_BackBuffer = xx get_BackBuffer,
-			get_Input      = xx get_Input,
-			sleep          = xx sleep,
-			allocate_Large = xx allocate_Large_Page,
-			register_Diagnostic = xx register_Diagnostic,
-			dump           = xx dump,
-			mutex_create  = mutex_create,
-			mutex_acquire = mutex_acquire,
-			mutex_release = mutex_release,
-		};
-		platform_context.calls = platform_calls;
+		platform_context.calls = platform;
 	}
 
 	game := load_Game_Code(Config.Game_DLL_Name);

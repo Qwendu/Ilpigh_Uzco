@@ -7,10 +7,11 @@ mouse_Move :: (window_info : *Window_Info, u_message : UINT, wparam : WPARAM, lp
 		// @BetterMouse
 		// Maybe add here that we track where the mouse is?
 		// And maybe support modes where the mouse stays in the center of the screen
-		mutex_acquire(window_info.input_mutex);
-		window_info.input.mouse.position_relative_to_top_left.x =  clamp((lparam >>  0) & 0xFFFF, 0, window_info.bitmap.size.x);
-		window_info.input.mouse.position_relative_to_top_left.y =  clamp((lparam >> 16) & 0xFFFF, 0, window_info.bitmap.size.y);
-		mutex_release(window_info.input_mutex);
+		input := acquire(*window_info.input);
+		defer    release(*window_info.input, input);
+		using input;
+		mouse.position_relative_to_top_left.x =  clamp((lparam >>  0) & 0xFFFF, 0, window_info.bitmap.size.x);
+		mouse.position_relative_to_top_left.y =  clamp((lparam >> 16) & 0xFFFF, 0, window_info.bitmap.size.y);
 }
 
 handle_Input :: (window_info : *Window_Info, u_message : UINT, wparam : WPARAM, lparam : LPARAM) #expand
@@ -24,11 +25,11 @@ handle_Input :: (window_info : *Window_Info, u_message : UINT, wparam : WPARAM, 
 	if raw.header.dwType == RIM_TYPEMOUSE
 	{
 		mouse_raw := raw.data.mouse;
-		mutex_acquire(window_info.input_mutex);
-		using window_info.input;
+		input := acquire(*window_info.input);
+		defer    release(*window_info.input, input);
+		using input;
 		if !mouse_raw.usFlags & MOUSE_MOVE_ABSOLUTE
 		{
-			using window_info.input;
 			mouse.delta.x += mouse_raw.lLastX;
 			mouse.delta.y += mouse_raw.lLastY;
 		}
@@ -54,17 +55,15 @@ handle_Input :: (window_info : *Window_Info, u_message : UINT, wparam : WPARAM, 
 		{
 			key_states[windows_key_map[VK_RBUTTON]].stop_pressed = current_time_monotonic();
 		}
-
-		mutex_release(window_info.input_mutex);
-
 	}
 }
 
 key_Down :: (window_info : *Window_Info, u_message : UINT, wparam : WPARAM, lparam : LPARAM) #expand
 {
 	// https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
-	mutex_acquire(window_info.input_mutex);
-	using window_info.input;
+	input := acquire(*window_info.input);
+	defer    release(*window_info.input, input);
+	using input;
 	now := current_time_monotonic();
 	button_code := windows_key_map[wparam % windows_key_map.count];
 	if key_states[button_code].start_pressed < key_states[button_code].stop_pressed
@@ -72,20 +71,19 @@ key_Down :: (window_info : *Window_Info, u_message : UINT, wparam : WPARAM, lpar
 		key_states[button_code].start_pressed = now;
 	}
 	`result = 0;
-	mutex_release(window_info.input_mutex);
 }
 
 
 key_Up :: (window_info : *Window_Info, u_message : UINT, wparam : WPARAM, lparam : LPARAM) #expand
 {
-	mutex_acquire(window_info.input_mutex);
-	using window_info.input;
+	input := acquire(*window_info.input);
+	defer    release(*window_info.input, input);
+	using input;
 	now := current_time_monotonic();
 	button_code := windows_key_map[wparam % windows_key_map.count];
 	key_states[button_code].stop_pressed = now;
 
 	`result = 0;
-	mutex_release(window_info.input_mutex);
 }
 
 

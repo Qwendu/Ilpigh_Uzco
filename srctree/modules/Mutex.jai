@@ -13,15 +13,16 @@ create :: (m : *Mutex($T))
 	m.lock = platform.mutex_create();
 }
 
-acquire :: (mutex : *$M/Mutex, loc := #caller_location) -> *M.T  #expand
+acquire :: (mutex : *$M/Mutex, loc := #caller_location) -> *M.T 
 {
 	//print("Acquiring % in %\n", mutex, loc);
 	platform.mutex_acquire(mutex.lock);
 	return *mutex.data;
 }
 
-release :: (mutex : *$M/Mutex, loc := #caller_location)  #expand
+release :: (mutex : *$M/Mutex, data : *M.T, loc := #caller_location)
 {
+	assert(*mutex.data == data);
 	//print("Releasing % in %\n", mutex, loc);
 	platform.mutex_release(mutex.lock);
 }

@@ -2,7 +2,6 @@
 
 - [ ] Add Annotation Assertions like ``@"assert(buffer.count == allocated.width * allocated.height)"`` 
 
-
 - [ ] Figure out how to stop all threads and load from a dump folder
 
 
@@ -10,6 +9,8 @@
 - [ ] Mesh Loader
 	- [ ] 
 - [ ] Hot Swapping
+	- [x] Temporary file copy of dlls
+	- [ ] Semaphores for stopping threads
 - [ ] Rendering
 	- [x] Triangle Rasterization
 	- [x] Jai Shaders
@@ -45,3 +46,4 @@
 DONE:
 
 - [x] Refactor windows input from if statements to a simple table lookup!
+- [x] Better mutex for Platform code
