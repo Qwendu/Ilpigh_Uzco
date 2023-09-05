@@ -160,10 +160,16 @@ draw_AABB :: (using aabb : AABB) #expand
 	add_Line(`draw_buffer, .{max.x, max.y, min.z}, .{max.x, min.y, min.z}, BLUE);
 }
 
+#load "Physics/Broad_Phase.jai";
+
+
 tick_Physics :: (dt : float, draw_buffer : *Draw_Buffer)
 {
-	a := AABB.{.{}, .{1,2,3}};
-	draw_AABB(a);
+	aabbs :[3] AABB = AABB.[.{.{-1,-1,-1},.{}}, .{.{1,1,1},.{2,2,2}}, .{.{3,3,3},.{4,4,4}}];
+	for aabbs
+	{
+		draw_AABB(it);
+	}
 
 	physics_state.time += microseconds_to_apollo(xx (dt * 1000 * 1000));
 	append_State();
