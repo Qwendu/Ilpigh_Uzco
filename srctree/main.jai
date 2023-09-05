@@ -218,6 +218,12 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 			p1 := float3.{-2,  2, 0};
 			add_Light_Source(draw_buffer, .{position = p1, range = 10, color = .{1,1,1,1}});
 			gizmo_At(p1);
+
+			gizmo_At(.{}, 10);
+			array_add(*draw_buffer.bezier_3d, Bezier_Curve_3D.{control_points = .[.{}, .{1,1,0}, .{2,0,0}]});
+			array_add(*draw_buffer.bezier_3d, Bezier_Curve_3D.{control_points = .[.{}, .{1,0,1}, .{2,1,0}]});
+			array_add(*draw_buffer.bezier_3d, Bezier_Curve_3D.{control_points = .[.{}, .{0,1,0}, .{0,0,1}]});
+	
 		}
 		
 		//
@@ -286,3 +292,4 @@ Profiler :: #import "Tracy";
 #import "Logging_Utils";
 #import "Input_System";
 #import "Platform_Interface";
+#import "Bezier";

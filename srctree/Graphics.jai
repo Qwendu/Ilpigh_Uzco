@@ -3,6 +3,32 @@
 #import "Mesh";
 GAMMA : float : 2.2;
 
+Draw_Buffer :: struct
+{
+	submission_time : Apollo_Time;
+	mouse_position_relative_to_top_left : int2;
+	
+	n_instances : int;
+	instances  : [600] Mesh_Instance;
+
+	n_light_sources : int;
+	light_sources : [20] Light_Source;
+
+	n_lines : int;
+	lines   : [8000] Line;
+
+	bezier_2d : Static_Auto_Array(100, Bezier_Curve_2D);
+	bezier_3d : Static_Auto_Array(100, Bezier_Curve_3D);
+
+	camera : Camera;
+};
+
+Line :: struct
+{
+	start : float3;
+	end   : float3;
+	color : Color;
+}
 
 Draw_Args :: struct
 {
@@ -26,7 +52,7 @@ render_Thread :: (args :*Draw_Args) #c_call
 {
 	Profiler.NameThread(#procedure_name());
 
-		
+	args.draw_context.logger = draw_logger;
 	push_context,defer_pop args.draw_context;
 	output : Output;
 	
@@ -227,6 +253,8 @@ clear_Instances :: (draw_buffer : *Draw_Buffer)
 	draw_buffer.n_instances = 0;
 	draw_buffer.n_light_sources = 0;
 	draw_buffer.n_lines = 0;
+	draw_buffer.bezier_2d.count = 0;
+	draw_buffer.bezier_3d.count = 0;
 }
 
 Mesh_Instance :: struct
@@ -235,36 +263,17 @@ Mesh_Instance :: struct
 	mesh_to_world : float4x4;
 };
 
-Draw_Buffer :: struct
-{
-	submission_time : Apollo_Time;
-	mouse_position_relative_to_top_left : int2;
-	
-	n_instances : int;
-	instances  : [600] Mesh_Instance;
 
-	n_light_sources : int;
-	light_sources : [20] Light_Source;
-
-	n_lines : int;
-	lines   : [8000] Line;
-
-	camera : Camera;
-};
-
-Line :: struct
-{
-	start : float3;
-	end   : float3;
-	color : Color;
-}
 
 #scope_module
 
 draw_logger :: (message : string, data : *void, info : Log_Info)
 {
 	now := current_time_monotonic() - context.STARTUP_TIME;
-	print("[RENDER]+%: %\n", to_milliseconds(now), message);
+	for String_By_Line.{message}
+	{
+		print("[RENDER]+%: %\n", to_milliseconds(now), it);
+	}
 }
 
 
@@ -305,4 +314,5 @@ Profiler :: #import "Tracy";
 #import "Mutex";
 #import "Predicated_Array";
 #import "Platform_Interface";
-
+#import "Logging_Utils";
+#import "Static_Auto_Array";

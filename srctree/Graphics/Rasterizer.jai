@@ -281,7 +281,6 @@ render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 							depth := dot(AVector(4, float32).{depth_0, u, v, 0}, uv_delta);
 							if depth < depth_buffer[y_off * bb.stride + x_off] //TODO(Qwendo): Add Occlusion Shader test?
 							{
-								// Bug, perspective incorrect interpolation! 
 								detf := convert(det, float32)/cast(float)area_2;
 								position : float3;
 								denom := (detf.y * v0_2 + detf.z * v1_2 + detf.x * v2_2);
@@ -317,118 +316,6 @@ render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 	// Lines
 	//
 	{
-		clip_Line :: (start : float2, end : float2, min : float2, max : float2) -> (start : float2, end : float2, succ : bool)
-		{
-			LEFT   :: 1;
-			RIGHT  :: 2;
-			TOP    :: 4;
-			BOTTOM :: 8;
-			//https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
-			outcode_2 :: (a : float2, min : float2, max : float2) -> u8
-			{
-				res : u8;
-				if a.x < min.x  res |= LEFT;
-				if a.x > max.x  res |= RIGHT;
-				if a.y > max.x  res |= TOP;
-				if a.y < min.x  res |= BOTTOM;
-				return res;
-			}
-		
-			start_copy := start;
-			end\ _copy := end;
-			succ : bool = false;
-			out_start_copy := outcode_2(start_copy, min, max);
-			out_end_copy   := outcode_2(end_copy, min, max);
-			pick_next := 0;
-			it := 0;
-			while it < 10
-			{
-				it += 1;
-				if out_start_copy == 0 && out_end_copy == 0
-				{
-					succ = true;
-					break;
-				}else if (out_start_copy & out_end_copy) != 0
-				{
-					succ = false;
-					break;
-				}else if out_start_copy != 0{
-					if out_start_copy & TOP
-					{
-						start_copy.x += (end_copy.x - start_copy.x) * (max.y - start_copy.y)/(end_copy.y - start_copy.y);
-						start_copy.y = max.y;
-					}else if out_start_copy & BOTTOM
-					{
-						start_copy.x += (end_copy.x - start_copy.x) * (min.y - start_copy.y)/(end_copy.y - start_copy.y);
-						start_copy.y = min.y;
-					}else if out_start_copy & RIGHT
-					{
-						start_copy.y += (end_copy.y - start_copy.y) * (max.x - start_copy.x)/(end_copy.x - start_copy.x);
-						start_copy.x = max.x;
-					}else if out_start_copy & LEFT
-					{
-						start_copy.y += (end_copy.y - start_copy.y) * (min.x - start_copy.x)/(end_copy.x - start_copy.x);
-						start_copy.x = min.x;
-					}
-				}else if out_end_copy != 0{
-					if out_end_copy & TOP
-					{
-						end_copy.x += (end_copy.x - start_copy.x) * (max.y - end_copy.y)/(end_copy.y - start_copy.y);
-						end_copy.y = max.y;
-					}else if out_end_copy & BOTTOM
-					{
-						end_copy.x += (end_copy.x - start_copy.x) * (min.y - end_copy.y)/(end_copy.y - start_copy.y);
-						end_copy.y = min.y;
-					}else if out_end_copy & RIGHT
-					{
-						end_copy.y += (end_copy.y - start_copy.y) * (max.x - end_copy.x)/(end_copy.x - start_copy.x);
-						end_copy.x = max.x;
-					}else if out_end_copy & LEFT
-					{
-						end_copy.y += (end_copy.y - start_copy.y) * (min.x - end_copy.x)/(end_copy.x - start_copy.x);
-						end_copy.x = min.x;
-					}
-				}
-				out_start_copy = outcode_2(start_copy, min, max);
-				out_end\ _copy = outcode_2(end\ _copy, min, max);
-			}
-			return start_copy, end_copy, succ;
-		}
-		render_Line_2D :: (start : float2, end : float2, color : Color) #expand
-		{
-			start_clipped, end_clipped, s := clip_Line(start, end, .{-1,-1}, .{1,1});
-			if !s return;
-			start_screen := (start_clipped + .{1,1})/2;
-			start_screen.x *= bb.size.x;
-			start_screen.y *= bb.size.y;
-			end_screen   := (end_clipped + .{1,1})/2;
-			end_screen.x *= bb.size.x;
-			end_screen.y *= bb.size.y;
-			delta := end_screen - start_screen;
-			len := max(abs(delta.x), abs(delta.y));
-			delta /= len;
-
-			runner := start_screen;
-			traversed := 0.0;
-			while traversed < len
-			{
-				x := cast(int)runner.x;
-				y := cast(int)runner.y;
-				if   0 <= x && x < bb.size.x
-				  && 0 <= y && y < bb.size.y
-				{
-					depth_buffer[y * bb.stride + x] = 1;
-					bb.data[y * bb.stride + x ] = .{
-						r = xx clamp(color.r * 255, 0, 255),
-						g = xx clamp(color.g * 255, 0, 255),
-						b = xx clamp(color.b * 255, 0, 255)
-					};
-				}
-
-				runner += delta;
-				traversed += 1;
-			}
-		}
 		for it_index: 0..draw_buffer.n_lines-1
 		{
 			it := draw_buffer.lines[it_index];
@@ -436,7 +323,22 @@ render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 			end   := project_Point(world_to_projection, it.end);
 			if outcode(start.xyz) != 0 || outcode(end.xyz) != 0  continue;
 			
-			render_Line_2D(start.xy, end.xy, it.color);
+			render_Line_2D(start.xy, end.xy, it.color, bb, depth_buffer);
+		}
+	}
+
+
+	//
+	// Bezier Curves
+	//
+	{
+		for draw_buffer.bezier_2d
+		{
+			render_Bezier_Curve(it, bb, depth_buffer);
+		}
+		for draw_buffer.bezier_3d
+		{
+			render_Bezier_Curve(it,world_to_projection, bb, depth_buffer);
 		}
 	}
 	
@@ -453,6 +355,7 @@ render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 			for x: 0..bb.size.x-1
 			{
 				if depth_buffer[y * bb.stride + x] == 1 continue x;
+
 				actual_shader_calls += 1;
 				out := fullbright_shader(shader_buffer[y * bb.stride + x], active_lights);
 				color := AVector(4, float32).{data = out.color.vec.data};
@@ -476,3 +379,6 @@ render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 buffer_memory : [] u8;
 depth_buffer : [] float;
 shader_buffer : [] Shader_Input;
+
+
+#load "Line2D.jai";

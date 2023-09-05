@@ -16,3 +16,6 @@ Metaprogram Pre/Post-Conditions assert(...) and defer assert(...) respectively s
 Metaprogram Thread Specific Reachability
 
 
+Blender live communication (model in blender is 1:1 in game)
+Inverted Z (0 being far, 1 being close) to counter-act precision issues
+Compile Time Generated logging macros log("{foo}"); instead of log("%", foo);

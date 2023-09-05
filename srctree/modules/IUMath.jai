@@ -69,3 +69,15 @@ float_compare :: (a : float, b : float, $comparison : enum {EQ;NEQ;LE;L;GE;G;}) 
 	return (res & 1) == 1;
 }
 
+
+
+choose :: (n : int, k : int) -> int
+{
+	return factorial(n)/(factorial(k) * factorial(n - k));
+}
+
+factorial :: (n : int) -> int
+{
+	if n <= 0  return 1;
+	return factorial(n - 1) * n;
+}
