@@ -42,6 +42,14 @@ array_add :: (using arr : *$Arr/Static_Auto_Array) -> *Arr.type, int
 	return ptr, count;
 }
 
+to_view :: (using arr : $Arr/Static_Auto_Array) -> [] Arr.type
+{
+	view : [] Arr.type;
+	view.data  = arr.data.data;
+	view.count = arr.count;
+	return view;
+}
+
 operator *[] :: (using arr : *$Arr/Static_Auto_Array, index : int) -> *Arr.type
 {
 	return *data[index];

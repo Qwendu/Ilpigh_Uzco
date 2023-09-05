@@ -8,27 +8,17 @@ Draw_Buffer :: struct
 	submission_time : Apollo_Time;
 	mouse_position_relative_to_top_left : int2;
 	
-	n_instances : int;
-	instances  : [600] Mesh_Instance;
+	instances     : Static_Auto_Array(600, Mesh_Instance);
+	light_sources : Static_Auto_Array(20, Light_Source);
 
-	n_light_sources : int;
-	light_sources : [20] Light_Source;
-
-	n_lines : int;
-	lines   : [8000] Line;
-
+	lines     : Static_Auto_Array(8000, Line);
 	bezier_2d : Static_Auto_Array(100, Bezier_Curve_2D);
 	bezier_3d : Static_Auto_Array(100, Bezier_Curve_3D);
 
 	camera : Camera;
 };
 
-Line :: struct
-{
-	start : float3;
-	end   : float3;
-	color : Color;
-}
+
 
 Draw_Args :: struct
 {
@@ -208,39 +198,28 @@ render_Thread :: (args :*Draw_Args) #c_call
 
 add_Light_Source :: (buffer : *Draw_Buffer, light : Light_Source)
 {
-	using buffer;
-	if n_light_sources < instances.count
+	if buffer.light_sources.count == buffer.light_sources.data.count
 	{
-		light_sources[n_light_sources] = light;
-		n_light_sources += 1;
-	}else{
 		log_error("Too many lights got queued");
 	}
-
+	array_add(*buffer.light_sources, light);
 }
 
 instance_Mesh :: (buffer : *Draw_Buffer, instance : Mesh_Instance)
 {
-	using buffer;
-	if n_instances < instances.count
+	if buffer.instances.count == buffer.instances.data.count
 	{
-		instances[n_instances] = instance;
-		n_instances += 1;
-	}else{
 		log_error("Too many meshes got queued!");
 	}
 }
 
 add_Line :: (buffer : *Draw_Buffer, start : float3, end : float3, color : Color)
 {
-	using buffer;
-	if n_lines < lines.count
+	if buffer.lines.count == buffer.lines.data.count
 	{
-		lines[n_lines] = .{start = start, end = end, color = color};
-		n_lines += 1;
-	}else{
 		log_error("Too many lines got queued!");
 	}
+	array_add(*buffer.lines, .{start, end, color});
 }
 
 
@@ -250,9 +229,9 @@ add_Line :: (buffer : *Draw_Buffer, start : float3, end : float3, color : Color)
 
 clear_Instances :: (draw_buffer : *Draw_Buffer)
 {
-	draw_buffer.n_instances = 0;
-	draw_buffer.n_light_sources = 0;
-	draw_buffer.n_lines = 0;
+	draw_buffer.instances.count = 0;
+	draw_buffer.light_sources.count = 0;
+	draw_buffer.lines.count = 0;
 	draw_buffer.bezier_2d.count = 0;
 	draw_buffer.bezier_3d.count = 0;
 }
@@ -307,7 +286,11 @@ Profiler :: #import "Tracy";
 #import "Math";
 #import "Color";
 #import "Material";
+
 #import "Light";
+#import "Line";
+#import "Bezier";
+
 #import "AABB";
 #import "Sync";
 #import "Memory";
@@ -316,3 +299,4 @@ Profiler :: #import "Tracy";
 #import "Platform_Interface";
 #import "Logging_Utils";
 #import "Static_Auto_Array";
+

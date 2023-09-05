@@ -32,8 +32,7 @@ render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 	FIXEDPOINT_ONE  ::  1<<FIXEDPOINT_BITS;
 	FIXEDPOINT_MASK :: (FIXEDPOINT_ONE)-1;
 	
-	active_lights : [] Light_Source = draw_buffer.light_sources;
-	active_lights.count = draw_buffer.n_light_sources;
+	active_lights : [] Light_Source = to_view(draw_buffer.light_sources);
 
 
 	mouse_pos_ndc := float2.{xx draw_buffer.mouse_position_relative_to_top_left.x, xx draw_buffer.mouse_position_relative_to_top_left.y};
@@ -113,23 +112,22 @@ render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 	
 	{
 		Profiler.TimeZone("AABB Culling");
-		for 0..draw_buffer.n_instances-1
+		for *draw_buffer.instances
 		{
-			instance := *draw_buffer.instances[it];
-			mesh     := get_Mesh(instance.id);
+			mesh     := get_Mesh(it.id);
 			if !mesh
 			{
-				log("Failed to load mesh of id %", instance.id);
+				log("Failed to load mesh of id %", it.id);
 				continue;
 			}
 			corners_mesh  :=  aabb_To_Corners(mesh.aabb);
-			instance_to_world      := instance.mesh_to_world;
-			instance_to_projection := world_to_projection * instance.mesh_to_world;
+			instance_to_world      := it.mesh_to_world;
+			instance_to_projection := world_to_projection * it.mesh_to_world;
 			n_outside := 0;
 
-			for corners_mesh
+			for vertex: corners_mesh
 			{
-				proj := project_Point(instance_to_projection, it);
+				proj := project_Point(instance_to_projection, vertex);
 				if outcode(proj.xyz) != 0
 				{
 					n_outside += 1;
@@ -142,7 +140,7 @@ render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 				active.instance_to_world = instance_to_world;
 				active.mesh_ptr = mesh;
 			}else{
-				#if LOG_CULLING log("Culled instance %", it);
+				#if LOG_CULLING log("Culled instance %", it_index);
 			}
 		}
 		Profiler.Plot("Active Instances", active_meshes.count);
@@ -316,9 +314,8 @@ render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 	// Lines
 	//
 	{
-		for it_index: 0..draw_buffer.n_lines-1
+		for draw_buffer.lines
 		{
-			it := draw_buffer.lines[it_index];
 			start := project_Point(world_to_projection, it.start);
 			end   := project_Point(world_to_projection, it.end);
 			if outcode(start.xyz) != 0 || outcode(end.xyz) != 0  continue;
