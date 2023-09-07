@@ -1,7 +1,7 @@
 Collision Phases
 Font Rendering
-House rule metaprograms
 Memory Allocators
+House rule metaprograms
 Hot Swapping
 Platform Layer context
 State Save files http://msinilo.pl/blog2/post/p269/
