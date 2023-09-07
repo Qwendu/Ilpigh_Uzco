@@ -9,6 +9,7 @@ modules          :: "srctree/modules";
 
 build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 {
+	make_directory_if_it_does_not_exist(".build");
 	log("Backend = %", ifx BACKEND_X64 then "X64" else "LLVM");
 	//OPTIMIZATION : Jai.Optimization_Type:  .VERY_OPTIMIZED;
 	OPTIMIZATION : Jai.Optimization_Type:  .DEBUG;
@@ -114,9 +115,11 @@ DUMP_STATE_FROM_SECONDS_AGO : int : 3;
 
 		DONE, OPTIMIZATION, game_name, PROFILER_ENABLED);
 		
-
-
-		if !write_entire_file(".build/Generated_Config.jai", *generated_config)  return false;
+		if !write_entire_file(".build/Generated_Config.jai", *generated_config)
+		{
+			log("Failed to write Generated_Config");
+			return false;
+		}
 	
 	}
 
