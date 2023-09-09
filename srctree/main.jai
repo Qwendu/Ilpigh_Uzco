@@ -3,15 +3,6 @@
 #add_context STARTUP_TIME : Apollo_Time;
 
 
-objects : [3] PO;
-collision_points : [..] float3;
-
-persistent_lines : [..] struct { start : float3; end : float3;};
-
-
-
-
-
 #program_export
 game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 {
@@ -53,7 +44,6 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	graphics := atomic_volatile_read(*args.output);
 
 
-	ticks_since_start : int = 0;
 
 	ms_pause : int =  1000/PHYSICS_FREQUENCY;
 	
@@ -64,69 +54,23 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	
 	N_COLLISIONS := 0;
 	log("Entering Main Loop");
+
+
+	obj1, obj2, obj3 : Physics_ID;
 	reset_Physics :: () #expand
 	{
 		log("Reset Simulation with state:");
 		log("% Hz:", PHYSICS_FREQUENCY);
 		log("Number of collisions %", N_COLLISIONS);
-		N_COLLISIONS = 0;
-		for objects
-		{
-			log("[%] pos %", it_index, it.translation.position);
-			log("[%] vel %", it_index, it.translation.velocity);
-		}
-		for collision_points
-		{
-			log("[%] %", it_index, it);
-		}
-		array_reset(*collision_points);
-
-
-		objects[0].translation.position = .{y =  4};
-		objects[0].translation.velocity = .{y = -0.8};
-		objects[0].mass = 1;
-
-		objects[1].translation.position = .{y =  1};
-		objects[1].translation.velocity = .{x =  0};
-		objects[1].mass = 0.01;
-#if objects.count > 2
-{
-		objects[2].translation.position = .{y = -5};
-		objects[2].translation.velocity = .{y =  0.2};
-		objects[2].mass = 1;
-}
-
-
-
-		
-		
-		for objects  log("[%] vol = %", it_index, orientation(it.tet[0], it.tet[1],it.tet[2],it.tet[3]));
-		
-		persistent_lines.count = 0;
-
 
 		reset_Entire_Physics_State();
 
-		obj1 = create_Physics_Object(Physics_Base.{translation = objects[0].translation}, TETRAEDER_DEFAULT);
-		obj2 = create_Physics_Object(Physics_Base.{translation = objects[1].translation}, TETRAEDER_DEFAULT);
-		obj3 = create_Physics_Object(Physics_Base.{translation = objects[2].translation}, TETRAEDER_DEFAULT);
+		obj1 = create_Physics_Object(Physics_Base.{translation = .{}}, TETRAEDER_DEFAULT);
+		obj2 = create_Physics_Object(Physics_Base.{translation = .{}}, TETRAEDER_DEFAULT);
+		obj3 = create_Physics_Object(Physics_Base.{translation = .{}}, TETRAEDER_DEFAULT);
 	}
 
-	objects[1].tet = .[
-			.{-1, .5,0},
-			.{0,-.5,0},
-			.{#run cos(60/180.0 * PI), .5,#run -sin( 60/180.0 * PI)},
-			.{#run cos(60/180.0 * PI), .5,#run  sin( 60/180.0 * PI)},
-	];
-	objects[2].tet = objects[1].tet;
-
-
-	obj1, obj2, obj3 : Physics_ID;
-
 	reset_Physics();
-	
-	log("obj1 has id %", formatID(obj1));
-	log("obj2 has id %", formatID(obj2));
 	
 
 	while atomic_volatile_read(*platform_init.exit) == 0
@@ -173,17 +117,9 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 			//
 			{
 				rot : float2;
-				#if false
-				{
-					if(is_Button_Pressed(*input, .I))  rot += .{ 0, 1};
-					if(is_Button_Pressed(*input, .J))  rot += .{-1, 0};
-					if(is_Button_Pressed(*input, .K))  rot += .{ 0,-1};
-					if(is_Button_Pressed(*input, .L))  rot += .{ 1, 0};
-				}else{
+				rot = mouse_delta * 1.0;
+				rot.y *= -1;
 				
-					rot = mouse_delta * 1.0;
-					rot.y *= -1;
-				}
 				if is_Button_Pressed(*input, .MOUSE_LEFT)
 				{
 					camera_pitch_yaw += rot * DELTA;
@@ -232,7 +168,6 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		if true
 		{
 			id := identity(4, float);
-			if false{
 			for *< Physics_Objects_Iterator(.TETRAEDER).{}
 			{
 				o := it;
@@ -243,7 +178,6 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 				add_Line(draw_buffer, o.shape.vertices[1] + o.translation.position, o.shape.vertices[2] + o.translation.position, RED);
 				add_Line(draw_buffer, o.shape.vertices[1] + o.translation.position, o.shape.vertices[3] + o.translation.position, RED);
 				add_Line(draw_buffer, o.shape.vertices[2] + o.translation.position, o.shape.vertices[3] + o.translation.position, RED);
-			}
 			}
 			tick_Physics(30);
 			draw_Debug_Visualizations(draw_buffer);
