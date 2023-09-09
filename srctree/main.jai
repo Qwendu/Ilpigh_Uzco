@@ -231,7 +231,6 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		//
 		if true
 		{
-			tick_Physics(30, draw_buffer);
 			id := identity(4, float);
 			if false{
 			for *< Physics_Objects_Iterator(.TETRAEDER).{}
@@ -246,6 +245,8 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 				add_Line(draw_buffer, o.shape.vertices[2] + o.translation.position, o.shape.vertices[3] + o.translation.position, RED);
 			}
 			}
+			tick_Physics(30);
+			draw_Debug_Visualizations(draw_buffer);
 		}
 
 		draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);

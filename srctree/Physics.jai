@@ -142,29 +142,30 @@ AABB :: struct
 
 draw_AABB :: (using aabb : AABB) #expand
 {
-	add_Line(`draw_buffer, min, .{min.x, min.y, max.z}, BLUE);
-	add_Line(`draw_buffer, min, .{min.x, max.y, min.z}, BLUE);
-	add_Line(`draw_buffer, min, .{max.x, min.y, min.z}, BLUE);
+	dbg_Line(min, .{min.x, min.y, max.z}, BLUE);
+	dbg_Line(min, .{min.x, max.y, min.z}, BLUE);
+	dbg_Line(min, .{max.x, min.y, min.z}, BLUE);
 
-	add_Line(`draw_buffer, max, .{max.x, max.y, min.z}, BLUE);
-	add_Line(`draw_buffer, max, .{max.x, min.y, max.z}, BLUE);
-	add_Line(`draw_buffer, max, .{min.x, max.y, max.z}, BLUE);
+	dbg_Line(max, .{max.x, max.y, min.z}, BLUE);
+	dbg_Line(max, .{max.x, min.y, max.z}, BLUE);
+	dbg_Line(max, .{min.x, max.y, max.z}, BLUE);
 
-	add_Line(`draw_buffer, .{min.x, max.y, max.z}, .{min.x, min.y, max.z}, BLUE);
-	add_Line(`draw_buffer, .{max.x, min.y, max.z}, .{min.x, min.y, max.z}, BLUE);
+	dbg_Line(.{min.x, max.y, max.z}, .{min.x, min.y, max.z}, BLUE);
+	dbg_Line(.{max.x, min.y, max.z}, .{min.x, min.y, max.z}, BLUE);
 
-	add_Line(`draw_buffer, .{min.x, max.y, max.z}, .{min.x, max.y, min.z}, BLUE);
-	add_Line(`draw_buffer, .{max.x, max.y, min.z}, .{min.x, max.y, min.z}, BLUE);
+	dbg_Line(.{min.x, max.y, max.z}, .{min.x, max.y, min.z}, BLUE);
+	dbg_Line(.{max.x, max.y, min.z}, .{min.x, max.y, min.z}, BLUE);
 
-	add_Line(`draw_buffer, .{max.x, min.y, max.z}, .{max.x, min.y, min.z}, BLUE);
-	add_Line(`draw_buffer, .{max.x, max.y, min.z}, .{max.x, min.y, min.z}, BLUE);
+	dbg_Line(.{max.x, min.y, max.z}, .{max.x, min.y, min.z}, BLUE);
+	dbg_Line(.{max.x, max.y, min.z}, .{max.x, min.y, min.z}, BLUE);
 }
 
 #load "Physics/Broad_Phase.jai";
 
 
-tick_Physics :: (dt : float, draw_buffer : *Draw_Buffer)
+tick_Physics :: (dt : float)
 {
+	dbg_Clear_Visualizations();
 	aabbs :[3] AABB = AABB.[.{.{-1,-1,-1},.{}}, .{.{1,1,1},.{2,2,2}}, .{.{3,3,3},.{4,4,4}}];
 	for aabbs
 	{
@@ -656,6 +657,7 @@ for_expansion :: (p : Physics_Objects_By_ID, code : Code, flags : For_Flags) #ex
 
 
 #load "Physics/Error_Reporting.jai";
+#load "Physics/Visualization.jai";
 
 
 

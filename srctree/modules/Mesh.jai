@@ -10,6 +10,15 @@ Mesh :: struct
 	material : Material;
 };
 
+Mesh_Instance :: struct
+{
+	id : Mesh_ID;
+	mesh_to_world : float4x4;
+};
+
+Mesh_ID   :: #type,distinct int;
+Mesh_Path :: #type,distinct string;
+
 generate_AABB_Of_Mesh :: (mesh : Mesh) -> AABB(3, float)
 {
 	res : AABB(3, float);

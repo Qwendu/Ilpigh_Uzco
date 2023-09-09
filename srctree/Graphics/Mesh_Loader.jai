@@ -49,9 +49,6 @@ set_Mesh :: (mesh_id : Mesh_ID, mesh : Mesh)
 }
 
 
-Mesh_ID   :: #type,distinct int;
-Mesh_Path :: #type,distinct string;
-
 #scope_file
 
 Mesh_Manager : struct

@@ -6,7 +6,7 @@ Cluster :: struct
 	end   : int;
 }
 
-cluster_Overlapping_AABBs :: (aabbs : [] AABB, draw_buffer : *Draw_Buffer)
+cluster_Overlapping_AABBs :: (aabbs : [] AABB)
 {
 	//TODO
 }
