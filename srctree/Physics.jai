@@ -4,7 +4,7 @@ PHYSICS_FREQUENCY :: 10;
 dt :: 1.0/PHYSICS_FREQUENCY;
 
 
-#load "Physics/old.jai";
+//#load "Physics/old.jai";
 
 
 Physics_ID :: #type,distinct u16;
@@ -37,7 +37,7 @@ Physics_Base :: struct
 Physics_Object :: struct(shape_type : Shape_Type)
 {
 	using base : Physics_Base;
-	shape      : Shape(shape_type);
+	using shape      : Shape(shape_type);
 }
 
 Shape :: struct(shape_type : Shape_Type)
@@ -53,33 +53,7 @@ Shape :: struct(shape_type : Shape_Type)
 	}
 }
 
-Physics_Objects_Iterator :: struct(shape_type : Shape_Type) {};
 
-for_expansion :: (using po : $P/Physics_Objects_Iterator,  code : Code, $flags : For_Flags) #expand
-{
-	reverse    :: cast(bool) flags & .REVERSE;
-	by_pointer :: cast(bool) flags & .POINTER;
-	#assert by_pointer;
-	#if shape_type == .SPHERE
-	{
-		for * <=reverse sphere, index: physics_state.spheres
-		{
-			`it       := sphere;
-			`it_index := mangle_Physics_ID(shape_type, index);
-			 #insert code;
-		}
-	}else #if shape_type == .TETRAEDER
-	{
-		for * <=reverse tet, index : physics_state.tetraeder
-		{
-			`it       := tet;
-			`it_index := mangle_Physics_ID(shape_type, index);
-			#insert code;
-		}
-	}else{
-		assert(false, "We cant iterate over %.", o.shape_type);
-	}
-}
 
 Tetraeder :: struct
 {
@@ -140,38 +114,25 @@ AABB :: struct
 	max : float3;
 };
 
-draw_AABB :: (using aabb : AABB) #expand
-{
-	dbg_Line(min, .{min.x, min.y, max.z}, BLUE);
-	dbg_Line(min, .{min.x, max.y, min.z}, BLUE);
-	dbg_Line(min, .{max.x, min.y, min.z}, BLUE);
-
-	dbg_Line(max, .{max.x, max.y, min.z}, BLUE);
-	dbg_Line(max, .{max.x, min.y, max.z}, BLUE);
-	dbg_Line(max, .{min.x, max.y, max.z}, BLUE);
-
-	dbg_Line(.{min.x, max.y, max.z}, .{min.x, min.y, max.z}, BLUE);
-	dbg_Line(.{max.x, min.y, max.z}, .{min.x, min.y, max.z}, BLUE);
-
-	dbg_Line(.{min.x, max.y, max.z}, .{min.x, max.y, min.z}, BLUE);
-	dbg_Line(.{max.x, max.y, min.z}, .{min.x, max.y, min.z}, BLUE);
-
-	dbg_Line(.{max.x, min.y, max.z}, .{max.x, min.y, min.z}, BLUE);
-	dbg_Line(.{max.x, max.y, min.z}, .{max.x, min.y, min.z}, BLUE);
-}
-
 #load "Physics/Broad_Phase.jai";
 
 
 tick_Physics :: (dt : float)
 {
 	dbg_Clear_Visualizations();
-	aabbs :[3] AABB = AABB.[.{.{-1,-1,-1},.{}}, .{.{1,1,1},.{2,2,2}}, .{.{3,3,3},.{4,4,4}}];
-	for aabbs
+	//
+	// Get every Movement AABB
+	//
 	{
-		draw_AABB(it);
+		for Physics_Objects_By_ID.{}
+		{
+			aabb := get_AABB(it);
+			log("%'s aabb is %", it, aabb);
+			dbg_AABB(aabb);
+		}
 	}
 
+	
 	physics_state.time += microseconds_to_apollo(xx (dt * 1000 * 1000));
 	append_State();
 }
@@ -206,7 +167,34 @@ detect_Collision :: (a : Physics_ID, b : Physics_ID, dt : float) -> Pending_Coll
 
 
 
-
+get_AABB :: (id : Physics_ID) -> AABB
+{
+	shape, index := demangle_Physics_ID(id);
+	if #complete shape == 
+	{
+	case .SPHERE;
+		center := physics_state.spheres[index].translation.position;
+		radius := physics_state.spheres[index].radius;
+		radius_v := float3.{radius, radius, radius};
+		return .{center - radius_v, center + radius_v};
+	case .TETRAEDER;
+		obj := physics_state.tetraeder[index];
+		min := obj.vertices[0];
+		max := obj.vertices[0];
+		for 1..3
+		{
+			min.x = ifx obj.vertices[it].x < min.x obj.vertices[it].x else min.x;
+			min.y = ifx obj.vertices[it].y < min.y obj.vertices[it].y else min.y;
+			min.z = ifx obj.vertices[it].z < min.z obj.vertices[it].z else min.z;
+			max.x = ifx obj.vertices[it].x > max.x obj.vertices[it].x else max.x;
+			max.y = ifx obj.vertices[it].y > max.y obj.vertices[it].y else max.y;
+			max.z = ifx obj.vertices[it].z > max.z obj.vertices[it].z else max.z;
+		}
+		return .{obj.translation.position + min, obj.translation.position + max};
+	case .UNKOWN;
+		return .{};
+	}
+}
 
 
 
@@ -219,44 +207,6 @@ PVA :: struct(T : Type)
 	acceleration : T;
 }
 
-
-PO :: struct
-{
-	translation : PVA(float3);
-	rotation    : PVA(Quaternion);
-	mass : float = 1;
-
-	bounding_sphere_radius : float = 1;
-	local_time : float; // Used for resolving physics
-	tet : [4] float3 = .[
-			.{1,-.5,0},
-			.{0, .5,0},
-			.{#run cos(120/180.0 * PI),-.5,#run -sin(120/180.0 * PI)},
-			.{#run cos(120/180.0 * PI),-.5,#run  sin(120/180.0 * PI)},
-	];
-	shape : Collision_Shape;
-}
-
-
-Collision_Shape :: struct
-{
-	type : enum 
-	{
-		Sphere    :: 0;
-		Tetraeder :: 1;
-	} = .Sphere;
-	union
-	{
-		bounding_sphere : struct 
-		{
-			radius : float = 1;
-		};
-		tetraeder : struct 
-		{
-			vertices : [4] float3;
-		} = ---;
-	}
-};
 
 
 
@@ -511,8 +461,130 @@ dot(C-A, n_abv) * dot(D-A, n_abv) < 0
 	return time, float_compare(0, time, .LE) && float_compare(time, dt, .LE) && cd_on_different_sides_of_ab && ab_on_different_sides_of_cd, AB_POINT_DELTA, CD_POINT_DELTA;
 }
 
+point_Tet_Collision :: ( point : float3, vel : float3, tet : [4] float3, tet_position : float3, dt : float) -> (float, bool, point_on_tet: float3, normal : float3)
+{
+	side_Collision :: (rel : float3, vel : float3, a : float3, b : float3, c : float3) -> float, normal : float3
+	{
+		normal := cross(b - a, c - a);
+		return -dot(rel, normal)/dot(vel, normal), normal;
+	}
+	point_rel := point - tet_position;
+	// All sides by indices in correct order
+	// 012
+	// 132
+	// 310
+	// 302
+
+	earliest_collision : float3;
+	earliest_collision_normal : float3;
+	earliest_collision_time : float = dt + 1;
+	s0, s0_norm := side_Collision(point_rel - tet[0], vel, tet[0], tet[1], tet[2]);
+	if float_compare(0, s0, .LE) && float_compare(s0, dt, .LE)
+	{
+		col_point_tet := point_rel + vel * s0;
+		s0_1 := orientation(tet[1], tet[3], tet[2], col_point_tet);
+		s0_2 := orientation(tet[3], tet[1], tet[0], col_point_tet);
+		s0_3 := orientation(tet[3], tet[0], tet[2], col_point_tet);
+		if float_compare(s0_1, 0, .GE) && float_compare(s0_2, 0, .GE) && float_compare(s0_3, 0, .GE)
+		{
+			if earliest_collision_time > s0
+			{
+				earliest_collision = col_point_tet;
+				earliest_collision_normal = s0_norm;
+				earliest_collision_time = s0;
+			}
+		}
+	}
+
+	s1, s1_norm := side_Collision(point_rel - tet[1], vel, tet[1], tet[3], tet[2]);
+	if float_compare(0, s1, .LE) && float_compare(s1, dt, .LE)
+	{
+		col_point_tet := point_rel + vel * s1;
+		s1_1 := orientation(tet[0], tet[1], tet[2], col_point_tet);
+		s1_2 := orientation(tet[3], tet[1], tet[0], col_point_tet);
+		s1_3 := orientation(tet[3], tet[0], tet[2], col_point_tet);
+
+		if float_compare(s1_1, 0, .GE) && float_compare(s1_2, 0, .GE) && float_compare(s1_3, 0, .GE)
+		{
+			if earliest_collision_time > s1
+			{
+				earliest_collision = col_point_tet;
+				earliest_collision_normal = s1_norm;
+				earliest_collision_time = s1;
+			}
+		}
+	}
 
 
+	s2, s2_norm := side_Collision(point_rel - tet[2], vel, tet[3], tet[1], tet[0]);
+	if float_compare(0, s2, .LE) && float_compare(s2, dt, .LE)
+	{
+		col_point_tet := point_rel + vel * s2;
+		s2_1 := orientation(tet[0], tet[1], tet[2], col_point_tet);
+		s2_2 := orientation(tet[1], tet[3], tet[2], col_point_tet);
+		s2_3 := orientation(tet[3], tet[0], tet[2], col_point_tet);
+
+		if float_compare(s2_1, 0, .GE) && float_compare(s2_2, 0, .GE) && float_compare(s2_3, 0, .GE)
+		{
+			if earliest_collision_time > s2
+			{
+				earliest_collision = col_point_tet;
+				earliest_collision_normal = s2_norm;
+				earliest_collision_time = s2;
+			}
+		}
+	}
+
+	s3, s3_norm := side_Collision(point_rel - tet[3], vel, tet[3], tet[0], tet[2]);
+	if float_compare(0, s3, .LE) && float_compare(s3, dt, .LE)
+	{
+		col_point_tet := point_rel + vel * s3;
+		s3_1 := orientation(tet[0], tet[1], tet[2], col_point_tet);
+		s3_2 := orientation(tet[1], tet[3], tet[2], col_point_tet);
+		s3_3 := orientation(tet[3], tet[1], tet[0], col_point_tet);
+
+		if float_compare(s3_1, 0, .GE) && float_compare(s3_2, 0, .GE) && float_compare(s3_3, 0, .GE)
+		{
+			if earliest_collision_time > s3
+			{
+				earliest_collision = col_point_tet;
+				earliest_collision_normal = s3_norm;
+				earliest_collision_time = s3;
+			}
+		}
+	}
+
+	return earliest_collision_time, float_compare(0, earliest_collision_time, .LE) && float_compare(earliest_collision_time, dt, .LE), earliest_collision, earliest_collision_normal;
+}
+
+
+Physics_Objects_Iterator :: struct(shape_type : Shape_Type) {};
+
+for_expansion :: (using po : $P/Physics_Objects_Iterator,  code : Code, $flags : For_Flags) #expand
+{
+	reverse    :: cast(bool) flags & .REVERSE;
+	by_pointer :: cast(bool) flags & .POINTER;
+	#assert by_pointer;
+	#if shape_type == .SPHERE
+	{
+		for * <=reverse sphere, index: physics_state.spheres
+		{
+			`it       := sphere;
+			`it_index := mangle_Physics_ID(shape_type, index);
+			 #insert code;
+		}
+	}else #if shape_type == .TETRAEDER
+	{
+		for * <=reverse tet, index : physics_state.tetraeder
+		{
+			`it       := tet;
+			`it_index := mangle_Physics_ID(shape_type, index);
+			#insert code;
+		}
+	}else{
+		assert(false, "We cant iterate over %.", o.shape_type);
+	}
+}
 
 
 #scope_module
@@ -632,20 +704,20 @@ demangle_Physics_ID :: (id : Physics_ID) -> (shape_type : Shape_Type, index : in
 	return shape_type, xx index;
 }
 
-Physics_Objects_By_ID :: struct {start : Physics_ID;};
+Physics_Objects_By_ID :: struct {};
 
 for_expansion :: (p : Physics_Objects_By_ID, code : Code, flags : For_Flags) #expand
 {
 	`it       : Physics_ID;
 	`it_index : int;
 	
-	for _, index : physics_state.spheres
+	for _, index : *physics_state.spheres
 	{
 		it = mangle_Physics_ID(.SPHERE, index);
 		#insert code;
 		it_index += 1;
 	}
-	for _, index : physics_state.tetraeder
+	for _, index : *physics_state.tetraeder
 	{
 		it = mangle_Physics_ID(.TETRAEDER, index);
 		#insert code;

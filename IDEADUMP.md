@@ -1,3 +1,9 @@
+Sphere mesh
+Lines are in World Space
+Simplify Shaders
+All Meshes have one Color only
+update on Changed annotation "@UpdateOnChanged(Struct,Hash)" -> Hash the structs text, when it changes, error on annotations to make sure they are kept in sync
+
 Font Rendering
 Memory Allocators
 House rule metaprograms

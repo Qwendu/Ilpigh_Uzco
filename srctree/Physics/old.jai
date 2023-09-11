@@ -1,3 +1,42 @@
+PO :: struct
+{
+	translation : PVA(float3);
+	rotation    : PVA(Quaternion);
+	mass : float = 1;
+
+	bounding_sphere_radius : float = 1;
+	local_time : float; // Used for resolving physics
+	tet : [4] float3 = .[
+			.{1,-.5,0},
+			.{0, .5,0},
+			.{#run cos(120/180.0 * PI),-.5,#run -sin(120/180.0 * PI)},
+			.{#run cos(120/180.0 * PI),-.5,#run  sin(120/180.0 * PI)},
+	];
+	shape : Collision_Shape;
+}
+
+
+Collision_Shape :: struct
+{
+	type : enum 
+	{
+		Sphere    :: 0;
+		Tetraeder :: 1;
+	} = .Sphere;
+	union
+	{
+		bounding_sphere : struct 
+		{
+			radius : float = 1;
+		};
+		tetraeder : struct 
+		{
+			vertices : [4] float3;
+		} = ---;
+	}
+};
+
+
 cast_Tetraeder :: (a : *PO, b : *PO, dt : float) -> (time: float, collision: bool, point_local_to_a: float3, point_local_to_b: float3, normal : float3)
 {
 	//@incomplete
@@ -104,98 +143,4 @@ cast_Bounding_Sphere :: (a : *PO, b : *PO, dt : float) -> (intersect_time : floa
 }
 
 
-point_Tet_Collision :: ( point : float3, vel : float3, tet : [4] float3, tet_position : float3, dt : float) -> (float, bool, point_on_tet: float3, normal : float3)
-{
-	side_Collision :: (rel : float3, vel : float3, a : float3, b : float3, c : float3) -> float, normal : float3
-	{
-		normal := cross(b - a, c - a);
-		return -dot(rel, normal)/dot(vel, normal), normal;
-	}
-	point_rel := point - tet_position;
-	// All sides by indices in correct order
-	// 012
-	// 132
-	// 310
-	// 302
 
-	earliest_collision : float3;
-	earliest_collision_normal : float3;
-	earliest_collision_time : float = dt + 1;
-	s0, s0_norm := side_Collision(point_rel - tet[0], vel, tet[0], tet[1], tet[2]);
-	if float_compare(0, s0, .LE) && float_compare(s0, dt, .LE)
-	{
-		col_point_tet := point_rel + vel * s0;
-		s0_1 := orientation(tet[1], tet[3], tet[2], col_point_tet);
-		s0_2 := orientation(tet[3], tet[1], tet[0], col_point_tet);
-		s0_3 := orientation(tet[3], tet[0], tet[2], col_point_tet);
-		if float_compare(s0_1, 0, .GE) && float_compare(s0_2, 0, .GE) && float_compare(s0_3, 0, .GE)
-		{
-			if earliest_collision_time > s0
-			{
-				earliest_collision = col_point_tet;
-				earliest_collision_normal = s0_norm;
-				earliest_collision_time = s0;
-			}
-		}
-	}
-
-	s1, s1_norm := side_Collision(point_rel - tet[1], vel, tet[1], tet[3], tet[2]);
-	if float_compare(0, s1, .LE) && float_compare(s1, dt, .LE)
-	{
-		col_point_tet := point_rel + vel * s1;
-		s1_1 := orientation(tet[0], tet[1], tet[2], col_point_tet);
-		s1_2 := orientation(tet[3], tet[1], tet[0], col_point_tet);
-		s1_3 := orientation(tet[3], tet[0], tet[2], col_point_tet);
-
-		if float_compare(s1_1, 0, .GE) && float_compare(s1_2, 0, .GE) && float_compare(s1_3, 0, .GE)
-		{
-			if earliest_collision_time > s1
-			{
-				earliest_collision = col_point_tet;
-				earliest_collision_normal = s1_norm;
-				earliest_collision_time = s1;
-			}
-		}
-	}
-
-
-	s2, s2_norm := side_Collision(point_rel - tet[2], vel, tet[3], tet[1], tet[0]);
-	if float_compare(0, s2, .LE) && float_compare(s2, dt, .LE)
-	{
-		col_point_tet := point_rel + vel * s2;
-		s2_1 := orientation(tet[0], tet[1], tet[2], col_point_tet);
-		s2_2 := orientation(tet[1], tet[3], tet[2], col_point_tet);
-		s2_3 := orientation(tet[3], tet[0], tet[2], col_point_tet);
-
-		if float_compare(s2_1, 0, .GE) && float_compare(s2_2, 0, .GE) && float_compare(s2_3, 0, .GE)
-		{
-			if earliest_collision_time > s2
-			{
-				earliest_collision = col_point_tet;
-				earliest_collision_normal = s2_norm;
-				earliest_collision_time = s2;
-			}
-		}
-	}
-
-	s3, s3_norm := side_Collision(point_rel - tet[3], vel, tet[3], tet[0], tet[2]);
-	if float_compare(0, s3, .LE) && float_compare(s3, dt, .LE)
-	{
-		col_point_tet := point_rel + vel * s3;
-		s3_1 := orientation(tet[0], tet[1], tet[2], col_point_tet);
-		s3_2 := orientation(tet[1], tet[3], tet[2], col_point_tet);
-		s3_3 := orientation(tet[3], tet[1], tet[0], col_point_tet);
-
-		if float_compare(s3_1, 0, .GE) && float_compare(s3_2, 0, .GE) && float_compare(s3_3, 0, .GE)
-		{
-			if earliest_collision_time > s3
-			{
-				earliest_collision = col_point_tet;
-				earliest_collision_normal = s3_norm;
-				earliest_collision_time = s3;
-			}
-		}
-	}
-
-	return earliest_collision_time, float_compare(0, earliest_collision_time, .LE) && float_compare(earliest_collision_time, dt, .LE), earliest_collision, earliest_collision_normal;
-}

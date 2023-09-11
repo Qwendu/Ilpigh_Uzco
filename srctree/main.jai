@@ -56,7 +56,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 	log("Entering Main Loop");
 
 
-	obj1, obj2, obj3 : Physics_ID;
+	obj1, obj2, obj3, obj4 : Physics_ID;
 	reset_Physics :: () #expand
 	{
 		log("Reset Simulation with state:");
@@ -68,6 +68,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		obj1 = create_Physics_Object(Physics_Base.{translation = .{}}, TETRAEDER_DEFAULT);
 		obj2 = create_Physics_Object(Physics_Base.{translation = .{}}, TETRAEDER_DEFAULT);
 		obj3 = create_Physics_Object(Physics_Base.{translation = .{}}, TETRAEDER_DEFAULT);
+		obj4 = create_Physics_Object(.{}, SPHERE_DEFAULT);
 	}
 
 	reset_Physics();
@@ -167,6 +168,9 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		//
 		if true
 		{
+			tick_Physics(30);
+			draw_Debug_Visualizations(draw_buffer);
+
 			id := identity(4, float);
 			for *< Physics_Objects_Iterator(.TETRAEDER).{}
 			{
@@ -179,8 +183,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 				add_Line(draw_buffer, o.shape.vertices[1] + o.translation.position, o.shape.vertices[3] + o.translation.position, RED);
 				add_Line(draw_buffer, o.shape.vertices[2] + o.translation.position, o.shape.vertices[3] + o.translation.position, RED);
 			}
-			tick_Physics(30);
-			draw_Debug_Visualizations(draw_buffer);
+
 		}
 
 		draw_buffer = get_Write_Pointer(graphics.command_buffer_writer);
@@ -209,7 +212,8 @@ logger :: (message : string, data : *void, info : Log_Info)
 
 
 #import,file "Graphics.jai";
-#load "Physics.jai";
+#import,file "Physics.jai";
+#import "Draw_Buffer";
 Profiler :: #import "Tracy";
 #import "Basic";
 
@@ -228,3 +232,4 @@ Profiler :: #import "Tracy";
 #import "Input_System";
 #import "Platform_Interface";
 #import "Bezier";
+#import "Static_Auto_Array";
