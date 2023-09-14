@@ -65,10 +65,19 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 		reset_Entire_Physics_State();
 
-		obj1 = create_Physics_Object(Physics_Base.{translation = .{}}, TETRAEDER_DEFAULT);
-		obj2 = create_Physics_Object(Physics_Base.{translation = .{}}, TETRAEDER_DEFAULT);
-		obj3 = create_Physics_Object(Physics_Base.{translation = .{}}, TETRAEDER_DEFAULT);
-		obj4 = create_Physics_Object(.{}, SPHERE_DEFAULT);
+	#if true
+	{
+		obj1 = create_Physics_Object(Physics_Base.{translation = .{.{0,0,0}, .{}, .{}}}, TETRAEDER_DEFAULT);
+		obj2 = create_Physics_Object(Physics_Base.{translation = .{.{3,0,0}, .{}, .{}}}, TETRAEDER_DEFAULT);
+		obj3 = create_Physics_Object(Physics_Base.{translation = .{.{0,0,3}, .{}, .{}}}, TETRAEDER_DEFAULT);
+		obj4 = create_Physics_Object(Physics_Base.{translation = .{.{3,0,3}, .{}, .{}}}, TETRAEDER_DEFAULT);
+	}else{
+		obj1 = create_Physics_Object(Physics_Base.{translation = .{.{0,0,0}, .{1,0,0}, .{}}}, TETRAEDER_DEFAULT);
+		obj2 = create_Physics_Object(Physics_Base.{translation = .{.{3,0,0}, .{0,0,1}, .{}}}, TETRAEDER_DEFAULT);
+		obj3 = create_Physics_Object(Physics_Base.{translation = .{.{0,0,3}, .{0,0,-1}, .{}}}, TETRAEDER_DEFAULT);
+		obj4 = create_Physics_Object(Physics_Base.{translation = .{.{3,0,3}, .{-1,0,0}, .{}}}, TETRAEDER_DEFAULT);
+
+	}
 	}
 
 	reset_Physics();
@@ -157,9 +166,9 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 			gizmo_At(p1);
 
 			gizmo_At(.{}, 10);
-			array_add(*draw_buffer.bezier_3d, Bezier_Curve_3D.{control_points = .[.{}, .{1,1,0}, .{2,0,0}]});
-			array_add(*draw_buffer.bezier_3d, Bezier_Curve_3D.{control_points = .[.{}, .{1,0,1}, .{2,1,0}]});
-			array_add(*draw_buffer.bezier_3d, Bezier_Curve_3D.{control_points = .[.{}, .{0,1,0}, .{0,0,1}]});
+			//array_add(*draw_buffer.bezier_3d, Bezier_Curve_3D.{control_points = .[.{}, .{1,1,0}, .{2,0,0}]});
+			//array_add(*draw_buffer.bezier_3d, Bezier_Curve_3D.{control_points = .[.{}, .{1,0,1}, .{2,1,0}]});
+			//array_add(*draw_buffer.bezier_3d, Bezier_Curve_3D.{control_points = .[.{}, .{0,1,0}, .{0,0,1}]});
 	
 		}
 		
@@ -168,7 +177,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		//
 		if true
 		{
-			tick_Physics(30);
+			tick_Physics();
 			draw_Debug_Visualizations(draw_buffer);
 
 			id := identity(4, float);

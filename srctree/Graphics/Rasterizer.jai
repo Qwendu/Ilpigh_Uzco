@@ -32,7 +32,7 @@ render_Draw_Buffer :: (window : Window, draw_buffer : *Draw_Buffer)
 	FIXEDPOINT_ONE  ::  1<<FIXEDPOINT_BITS;
 	FIXEDPOINT_MASK :: (FIXEDPOINT_ONE)-1;
 	
-	active_lights : [] Light_Source = to_view(draw_buffer.light_sources);
+	active_lights : [] Light_Source = to_view(*draw_buffer.light_sources);
 
 
 	mouse_pos_ndc := float2.{xx draw_buffer.mouse_position_relative_to_top_left.x, xx draw_buffer.mouse_position_relative_to_top_left.y};

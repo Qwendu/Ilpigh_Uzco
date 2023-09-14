@@ -42,7 +42,18 @@ array_add :: (using arr : *$Arr/Static_Auto_Array) -> *Arr.type, int
 	return ptr, count;
 }
 
-to_view :: (using arr : $Arr/Static_Auto_Array) -> [] Arr.type
+ordered_insert_at :: (using arr : *$Arr/Static_Auto_Array, val : Arr.type, idx : int) 
+{
+	v : Arr.type;
+	array_add(arr, v);
+	for < arr.count-1..idx + 1
+	{
+		arr.data[it] = arr.data[it - 1];
+	}
+	arr.data[idx] = val;
+}
+
+to_view :: (using arr : *$Arr/Static_Auto_Array) -> [] Arr.type
 {
 	view : [] Arr.type;
 	view.data  = arr.data.data;
@@ -52,31 +63,27 @@ to_view :: (using arr : $Arr/Static_Auto_Array) -> [] Arr.type
 
 operator *[] :: (using arr : *$Arr/Static_Auto_Array, index : int) -> *Arr.type
 {
+	assert(0 <= index);
+	assert(index < arr.count);
 	return *data[index];
 }
 
-for_expansion :: (arr : $Arr/Static_Auto_Array, code : Code, flags : For_Flags) #expand
+for_expansion :: (arr : *$Arr/Static_Auto_Array, code : Code, flags : For_Flags) #expand
 {
+	view := to_view(arr);
 	rev :: cast(bool) flags & .REVERSE;
 	ptr :: cast(bool) flags & .POINTER;
-	#if rev
+	for *=ptr <=rev `it, `it_index : view
 	{
-		for < idx : arr.count-1..0
-		{
-			#if ptr  `it := *arr.data[idx];
-			else     `it :=  arr.data[idx];
-			`it_index := idx;
-			#insert code;
-		}
-	}else{
-		for < idx : arr.count-1..0
-		{
-			#if ptr  `it := *arr.data[idx];
-			else     `it :=  arr.data[idx];
-			`it_index := idx;
-			#insert code;
-		}
+		#insert code;
 	}
+}
+
+resize :: (using arr : *$Arr/Static_Auto_Array, new_size : int)
+{
+	assert(new_size <= capacity);
+	assert(new_size >= 0);
+	arr.count = new_size;
 }
 
 

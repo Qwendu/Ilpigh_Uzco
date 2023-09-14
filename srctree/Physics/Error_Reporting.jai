@@ -30,5 +30,6 @@ diagnostics_For_Physics : Diagnostic_Function : (log_file_builder : *String_Buil
 #import "File";
 #import "Jerialize";
 #import "Common";
+#import "Platform_Interface";
 #import "Diagnostic";
 Config :: #import "Config";

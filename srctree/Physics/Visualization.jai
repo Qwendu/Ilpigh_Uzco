@@ -54,9 +54,9 @@ dbg_AABB :: (min : float3, max : float3, color : Color = YELLOW)
 	dbg_Line(.{max.x, max.y, min.z}, .{max.x, min.y, min.z}, color);
 }
 
-dbg_AABB :: (aabb : $T/interface AABB)
+dbg_AABB :: (aabb : $T/interface AABB, color : Color = YELLOW)
 {
-	dbg_AABB(aabb.min, aabb.max);
+	dbg_AABB(aabb.min, aabb.max, color);
 }
 
 dbg_Clear_Visualizations :: () #expand

@@ -1,6 +1,6 @@
 #scope_export
 
-PHYSICS_FREQUENCY :: 10;
+PHYSICS_FREQUENCY :: 100;
 dt :: 1.0/PHYSICS_FREQUENCY;
 
 
@@ -114,22 +114,211 @@ AABB :: struct
 	max : float3;
 };
 
+merge :: (a : AABB, b : AABB) -> AABB
+{
+	r : AABB = a;
+	for 0..2
+	{
+		r.min.data[it] = min(a.min.data[it], b.min.data[it]);
+		r.max.data[it] = max(a.max.data[it], b.max.data[it]);
+	}
+	return r;
+}
+
+Associated_AABB :: struct
+{
+	#as using aabb : AABB;
+	id : Physics_ID = Physics_ID_INVALID;
+}
+
 #load "Physics/Broad_Phase.jai";
 
 
-tick_Physics :: (dt : float)
+tick_Physics :: ()
 {
 	dbg_Clear_Visualizations();
 	//
 	// Get every Movement AABB
 	//
 	{
+		using broad_phase;
+
+		broad_phase.reset();
+		associated_aabbs.count = 0;
 		for Physics_Objects_By_ID.{}
 		{
+			base := get_Base(it);
+			velocity := base.translation.velocity * dt;
+			log("base %", base);
 			aabb := get_AABB(it);
-			log("%'s aabb is %", it, aabb);
-			dbg_AABB(aabb);
+			aabb_after_vel := AABB.{aabb.min + velocity, aabb.max + velocity};
+			aabb_with_velocity := merge(aabb, aabb_after_vel);
+			array_add(*associated_aabbs, .{aabb_with_velocity, it});
 		}
+		for associated_aabbs
+		{
+			dbg_AABB(it);
+			idx := it_index + 1;
+			array_add(*orders[0],  idx);
+			array_add(*orders[0], -idx);
+
+			array_add(*orders[1],  idx);
+			array_add(*orders[1], -idx);
+
+			array_add(*orders[2],  idx);
+			array_add(*orders[2], -idx);
+		}
+
+		array_add(*clusters, .{0, orders[0].count});
+
+		quick_sort(to_view(*orders[0]), a => 
+			ifx a < 0 then 
+				broad_phase.associated_aabbs[-a - 1].max.x
+			else
+				broad_phase.associated_aabbs[ a - 1].min.x
+		);
+		quick_sort(to_view(*orders[1]), a => 
+			ifx a < 0 then 
+				broad_phase.associated_aabbs[-a - 1].max.y
+			else
+				broad_phase.associated_aabbs[ a - 1].min.y
+		);
+		quick_sort(to_view(*orders[2]), a => 
+			ifx a < 0 then 
+				broad_phase.associated_aabbs[-a - 1].max.z
+			else
+				broad_phase.associated_aabbs[ a - 1].min.z
+		);
+
+		//
+		// Setup Entry and leave times
+		// 
+		{
+			for axis : 0..2
+			{
+				resize(*leave_time[axis], associated_aabbs.count);
+				resize(*entry_time[axis], associated_aabbs.count);
+
+				for orders[axis]
+				{
+					if it < 0
+					{
+						id := -it - 1;
+						leave_time[axis][id] = it_index;
+					}else{
+						id :=  it - 1;
+						entry_time[axis][id] = it_index;
+					}
+				}
+			}
+			print_Order_Arrays();
+		}
+
+		//
+		// Trivial Clustering
+		//
+		{
+			partition :: (
+				$axis : int,
+				$split_axis : int,
+
+				cluster     : Cluster,
+				split_point : int
+			){
+				#assert axis != split_axis;
+				resize(*broad_phase.temp, broad_phase.orders[axis].count);
+				left_write_pointer  := cluster.start;
+				right_write_pointer := split_point;
+				for cluster.start..cluster.end-1
+				{
+					id_raw := broad_phase.orders[axis][it];
+					id := ifx id_raw < 0 then -id_raw - 1 else id_raw - 1;
+					entry := broad_phase.entry_time[split_axis][id];
+					leave := broad_phase.leave_time[split_axis][id];
+					new_index : int;
+					if broad_phase.entry_time[split_axis][id] < split_point
+					{
+						assert(broad_phase.leave_time[split_axis][id] < split_point);
+						broad_phase.temp[left_write_pointer] = id_raw;
+						new_index = left_write_pointer;
+						left_write_pointer += 1;
+					}else{
+						broad_phase.temp[right_write_pointer] = id_raw;
+						new_index  = right_write_pointer;
+						right_write_pointer += 1;
+					}
+					
+					if id_raw < 0
+					{
+						broad_phase.leave_time[axis][id] = new_index;
+					}else{
+						broad_phase.entry_time[axis][id] = new_index;
+					}
+				}
+				for cluster.start..cluster.end-1
+				{
+					broad_phase.orders[axis][it] = broad_phase.temp[it];
+				}
+				log("After split(%,%)", axis, split_axis);
+				broad_phase.print_Order_Arrays();
+			}
+			number_of_splits := 1;
+			while number_of_splits
+			{
+				number_of_splits = 0;
+				do_Split :: ($axis : int, cluster_idx : int) #expand
+				{
+					cluster := clusters[cluster_idx];
+					log("Splitting along axis %", axis);
+					axis_p1 :: (axis + 1) % 3;
+					axis_p2 :: (axis + 2) % 3;
+
+					stack_depth := 0;
+					number_of_intermediates := 0;
+					for it_index : cluster.start..cluster.end-1
+					{
+						it := orders[axis][it_index];
+						id := ifx it < 0 then -it - 1 else it - 1;
+
+						if it > 0 stack_depth += 1;
+						else      stack_depth -= 1;
+						number_of_intermediates += 1;
+
+						if stack_depth == 0 && it_index < cluster.end - 1
+						{
+							number_of_splits += 1;
+
+							split_point := cluster.start + number_of_intermediates;
+							
+
+							left_cluster    := cluster;
+							left_cluster.end = split_point;
+
+							right_cluster      := cluster;
+							right_cluster.start = split_point;
+							clusters[cluster_idx] = right_cluster;
+							ordered_insert_at(*clusters, left_cluster, cluster_idx);
+
+							partition(axis_p2, axis, cluster, left_cluster.end);
+							partition(axis_p1, axis, cluster, left_cluster.end);
+							number_of_intermediates = 0;
+						}
+					}
+					print_Order_Arrays();
+				}
+				cluster_idx : int;
+				while cluster_idx < clusters.count
+				{
+					defer cluster_idx += 1;
+					do_Split(0, cluster_idx);
+					do_Split(1, cluster_idx);
+					do_Split(2, cluster_idx);
+				}
+			}
+		}
+		print_Order_Arrays();
+		
+		
 	}
 
 	
@@ -166,6 +355,19 @@ detect_Collision :: (a : Physics_ID, b : Physics_ID, dt : float) -> Pending_Coll
 }
 
 
+get_Base :: (id : Physics_ID) -> Physics_Base
+{
+	shape, index := demangle_Physics_ID(id);
+	if #complete shape ==
+	{
+	case .SPHERE;
+		return physics_state.spheres[index].base;
+	case .TETRAEDER;
+		return physics_state.tetraeder[index].base;
+	case .UNKOWN;
+		return .{};
+	}
+}
 
 get_AABB :: (id : Physics_ID) -> AABB
 {
@@ -607,7 +809,12 @@ physics_state : struct
 	time : Apollo_Time;
 	tetraeder : Static_Auto_Array(100,Physics_Object(.TETRAEDER));
 	spheres   : Static_Auto_Array(100,Physics_Object(.SPHERE));
+	
+	
+
+	
 }
+
 
 
 
@@ -740,3 +947,4 @@ for_expansion :: (p : Physics_Objects_By_ID, code : Code, flags : For_Flags) #ex
 #import "Static_Auto_Array";
 #import "Ring_Buffer";
 #import "Color";
+#import "Sort";
