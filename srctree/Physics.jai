@@ -144,12 +144,11 @@ tick_Physics :: ()
 		using broad_phase;
 
 		broad_phase.reset();
-		associated_aabbs.count = 0;
+
 		for Physics_Objects_By_ID.{}
 		{
 			base := get_Base(it);
 			velocity := base.translation.velocity * dt;
-			log("base %", base);
 			aabb := get_AABB(it);
 			aabb_after_vel := AABB.{aabb.min + velocity, aabb.max + velocity};
 			aabb_with_velocity := merge(aabb, aabb_after_vel);
@@ -211,7 +210,6 @@ tick_Physics :: ()
 					}
 				}
 			}
-			print_Order_Arrays();
 		}
 
 		//
@@ -259,8 +257,6 @@ tick_Physics :: ()
 				{
 					broad_phase.orders[axis][it] = broad_phase.temp[it];
 				}
-				log("After split(%,%)", axis, split_axis);
-				broad_phase.print_Order_Arrays();
 			}
 			number_of_splits := 1;
 			while number_of_splits
@@ -269,7 +265,6 @@ tick_Physics :: ()
 				do_Split :: ($axis : int, cluster_idx : int) #expand
 				{
 					cluster := clusters[cluster_idx];
-					log("Splitting along axis %", axis);
 					axis_p1 :: (axis + 1) % 3;
 					axis_p2 :: (axis + 2) % 3;
 
@@ -304,7 +299,6 @@ tick_Physics :: ()
 							number_of_intermediates = 0;
 						}
 					}
-					print_Order_Arrays();
 				}
 				cluster_idx : int;
 				while cluster_idx < clusters.count
@@ -316,11 +310,43 @@ tick_Physics :: ()
 				}
 			}
 		}
-		print_Order_Arrays();
-		
-		
-	}
 
+		broad_phase.print_Order_Arrays();
+		id_clusters_write_pointer := 0;
+		resize(*broad_phase.id_clusters, associated_aabbs.count);
+		for * clusters
+		{
+			start_of_cluster := id_clusters_write_pointer;
+			for index : it.start..it.end-1
+			{
+				id := orders[0][index];
+				if id > 0 
+				{
+					id_clusters[id_clusters_write_pointer] = associated_aabbs[id - 1].id;
+					id_clusters_write_pointer += 1;
+				}
+			}
+			it.start = start_of_cluster;
+			it.end   = id_clusters_write_pointer;
+		}
+	}
+	
+
+	//
+	//  Collision Resolving
+	//
+	{
+		for broad_phase.clusters
+		{
+			for primary : it.start..it.end-1
+			{
+				for secondary : primary+1..it.end-1
+				{
+					log("Resolving collision between % and %", broad_phase.id_clusters[primary], broad_phase.id_clusters[secondary]);
+				}
+			}
+		}
+	}
 	
 	physics_state.time += microseconds_to_apollo(xx (dt * 1000 * 1000));
 	append_State();
@@ -397,8 +423,6 @@ get_AABB :: (id : Physics_ID) -> AABB
 		return .{};
 	}
 }
-
-
 
 
 

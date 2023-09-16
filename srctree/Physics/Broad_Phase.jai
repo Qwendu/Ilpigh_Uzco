@@ -22,6 +22,7 @@ broad_phase : struct
 	temp     : Static_Auto_Array(associated_aabbs.capacity * 2, int);
 
 	clusters : Static_Auto_Array(associated_aabbs.capacity, Cluster);
+	id_clusters : Static_Auto_Array(associated_aabbs.capacity, Physics_ID);
 
 
 
