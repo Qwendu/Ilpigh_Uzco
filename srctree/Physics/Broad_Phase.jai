@@ -133,6 +133,13 @@ broad_phase : struct
 			log("%|%|%", orders[0][it], orders[1][it], orders[2][it]);
 		}
 	}
+	
+	dont_Overlap_In_Axis ::($axis : int, a : int, b : int)
+	{
+		return    leave_time[axis][a] < entry_time[axis][b] 
+		       || leave_time[axis][b] < entry_time[axis][a];
+
+	}
 } = .{};
 
 #scope_file

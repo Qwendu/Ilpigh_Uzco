@@ -65,7 +65,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 
 		reset_Entire_Physics_State();
 
-	#if true
+	#if false
 	{
 		obj1 = create_Physics_Object(Physics_Base.{translation = .{.{0,0,0}, .{}, .{}}}, TETRAEDER_DEFAULT);
 		obj2 = create_Physics_Object(Physics_Base.{translation = .{.{3,0,0}, .{}, .{}}}, TETRAEDER_DEFAULT);

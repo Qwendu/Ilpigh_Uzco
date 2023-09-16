@@ -259,19 +259,26 @@ tick_Physics :: ()
 				{
 					broad_phase.orders[axis][it] = broad_phase.temp[it];
 				}
-				log("After split(%,%)", axis, split_axis);
-				broad_phase.print_Order_Arrays();
 			}
 			number_of_splits := 1;
 			while number_of_splits
 			{
 				number_of_splits = 0;
-				do_Split :: ($axis : int, cluster_idx : int) #expand
+				do_Split :: ($axis : int, cluster_idx : int) -> (did_split : bool) #expand
 				{
+					did_split := false;
 					cluster := clusters[cluster_idx];
-					log("Splitting along axis %", axis);
 					axis_p1 :: (axis + 1) % 3;
 					axis_p2 :: (axis + 2) % 3;
+
+					start_id_raw := orders[axis][cluster.start];
+					start_id := ifx start_id_raw < 0 then -start_id - 1 else start_id - 1;
+					
+					latest_leave_time_p1   := leave_time[axis_p1][start_id];
+					earliest_entry_time_p1 := entry_time[axis_p1][start_id];
+
+					latest_leave_time_p2   := leave_time[axis_p2][start_id];
+					earliest_entry_time_p2 := entry_time[axis_p2][start_id];
 
 					stack_depth := 0;
 					number_of_intermediates := 0;
@@ -280,12 +287,28 @@ tick_Physics :: ()
 						it := orders[axis][it_index];
 						id := ifx it < 0 then -it - 1 else it - 1;
 
-						if it > 0 stack_depth += 1;
-						else      stack_depth -= 1;
-						number_of_intermediates += 1;
 
-						if stack_depth == 0 && it_index < cluster.end - 1
+						if latest_leave_time_p1    < entry_time[axis_p1][id]
+						|| leave_time[axis_p1][id] < earliest_entry_time_p1 
+						|| latest_leave_time_p2    < entry_time[axis_p2][id]
+						|| leave_time[axis_p2][id] < earliest_entry_time_p2 
 						{
+
+						}else{
+
+							if it > 0 stack_depth += 1;
+							else      stack_depth -= 1;
+							number_of_intermediates += 2;
+							if leave_time[axis_p1][id] > latest_leave_time_p1 then latest_leave_time_p1 = leave_time[axis_p1][id];
+							if entry_time[axis_p1][id] < earliest_entry_time_p1 then earliest_entry_time_p1 = entry_time[axis_p1][id];
+							if leave_time[axis_p2][id] > latest_leave_time_p2 then latest_leave_time_p2 = leave_time[axis_p2][id];
+							if entry_time[axis_p2][id] < earliest_entry_time_p2 then earliest_entry_time_p2 = entry_time[axis_p2][id];
+						}
+
+						
+						if stack_depth == 0 && cluster.start < it_index && it_index < cluster.end - 1
+						{
+							did_split |= true;
 							number_of_splits += 1;
 
 							split_point := cluster.start + number_of_intermediates;
@@ -304,15 +327,17 @@ tick_Physics :: ()
 							number_of_intermediates = 0;
 						}
 					}
-					print_Order_Arrays();
+					if did_split  print_Order_Arrays();
+					return did_split;
 				}
 				cluster_idx : int;
 				while cluster_idx < clusters.count
 				{
 					defer cluster_idx += 1;
-					do_Split(0, cluster_idx);
-					do_Split(1, cluster_idx);
-					do_Split(2, cluster_idx);
+					
+					if !do_Split(0, cluster_idx) && clusters.count == clusters.capacity  break;
+					if !do_Split(1, cluster_idx) && clusters.count == clusters.capacity  break;
+					if !do_Split(2, cluster_idx) && clusters.count == clusters.capacity  break;
 				}
 			}
 		}
