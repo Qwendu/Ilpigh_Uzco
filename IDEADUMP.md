@@ -1,10 +1,17 @@
+Forward Rendering
+Font Rendering
+Radiance Cascades
+Inverted Z (0 being far, 1 being close) to counter-act precision issues
+
+
+
 Sphere mesh
 Lines are in World Space
 Simplify Shaders
 All Meshes have one Color only
 update on Changed annotation "@UpdateOnChanged(Struct,Hash)" -> Hash the structs text, when it changes, error on annotations to make sure they are kept in sync
 
-Font Rendering
+
 Memory Allocators
 House rule metaprograms
 Hot Swapping
@@ -21,8 +28,19 @@ Metaprogram Thread Specific Reachability
 
 
 Blender live communication (model in blender is 1:1 in game)
-Inverted Z (0 being far, 1 being close) to counter-act precision issues
+
 Compile Time Generated logging macros log("{foo}"); instead of log("%", foo);
 Volumetric Rendering
-Radiance Cascades
+
 Semantic Reading functions like "clear_array", "reset_array", etc
+
+
+
+# Hierarchical Precision
+dt = 2^-7 = 128 ticks per second
+fixedpoint 7.17 -> ulp = 2^-17
+ulp_vel = smallest velocity such that one physics update moves the object = ulp/dt = 2^-10 ~ 1 mm per second is the slowest an object can move
+velocities actually only need 10 precision bits
+
+
+

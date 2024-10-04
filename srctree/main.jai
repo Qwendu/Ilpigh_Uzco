@@ -96,6 +96,7 @@ game_entry : ENTRY_FUNCTION : (platform_init : *Platform) #c_call
 		{
 			log("F11 pressed, we are saving a dump");
 			platform.dump();
+			break;
 		}
 		mouse_delta := float2.{input.mouse.delta.x * 0.1, input.mouse.delta.y * 0.1};
 		

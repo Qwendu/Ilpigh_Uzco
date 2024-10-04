@@ -1,3 +1,4 @@
+#scope_export
 
 Tebi :: (n : int) -> int #expand
 {

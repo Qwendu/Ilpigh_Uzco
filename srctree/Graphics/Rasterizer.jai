@@ -2,7 +2,7 @@
 
 setup_Buffers :: ()
 {
-	bytes_to_alloc := Mebi(256);
+	bytes_to_alloc := 256 * 1024 * 1024;//Mebi(256);
 	buffer_memory.data = platform.allocate_Large(bytes_to_alloc);
 	log("Large page returned %\n", buffer_memory.data);
 	if buffer_memory.data  buffer_memory.count = bytes_to_alloc;
@@ -379,3 +379,4 @@ shader_buffer : [] Shader_Input;
 
 
 #load "Line2D.jai";
+#import "Memory";

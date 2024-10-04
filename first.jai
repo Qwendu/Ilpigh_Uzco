@@ -63,9 +63,10 @@ build_Game :: (os : Operating_System_Tag = .WINDOWS) -> bool
 
 
 		import : [..] string;
-		array_add(*import, ..options_platform.import_path); // We need this for RuntimeSupport
-		array_add(*import, platform_modules);
+
 		array_add(*import,          modules);
+		array_add(*import, platform_modules);
+		array_add(*import, ..options_platform.import_path); // We need this for RuntimeSupport
 		options_platform.import_path = import; 
 		Jai.set_optimization(*options_platform, OPTIMIZATION);
 

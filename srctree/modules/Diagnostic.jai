@@ -23,7 +23,7 @@ create_Diagnostic_Context :: ($name : string, builder : *String_Builder) -> Cont
 			append_And_Write("DIAG::");
 			append_And_Write(name);
 			append_And_Write(": ");
-			append_And_Write(message);
+			append_And_Write(it);
 			append_And_Write("\n");
 		}
 	};
@@ -45,8 +45,9 @@ reserve_Allocator : Allocator_Proc : (mode : Allocator_Mode, size : s64, old_siz
 	{
 	case .ALLOCATE;
 		if arena.count + size >= arena.capacity  return null;
-		ptr := *arena[arena.count];
+		base := arena.count;
 		arena.count += size;
+		ptr := *arena[base];
 		return ptr;
 
 	case .RESIZE;

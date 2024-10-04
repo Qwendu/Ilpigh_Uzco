@@ -22,8 +22,7 @@ CPU :: struct
 };
 
 
-amd_ryzen_7_1700 :: CPU.
-{
+amd_ryzen_7_1700 :: CPU.{
 	base_clock = #run Giga(3),
 	number_of_cores = 8,
 	number_of_threads = 16,

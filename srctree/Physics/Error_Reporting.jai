@@ -13,11 +13,12 @@ append_State :: () #expand
 
 diagnostics_For_Physics : Diagnostic_Function : (log_file_builder : *String_Builder, dump_file : *String_Builder) -> string #c_call
 {
+	// TODO(Qwendo): Save the entire history buffer until now
 	ctx : Context = create_Diagnostic_Context("Physics", log_file_builder);
 	push_context,defer_pop ctx;
 
 	state := read(*history);
-	log("We are handling the crash in % at +%", #procedure_name(), to_milliseconds(state.time));
+	log("Dumping Physics State at tick %", #procedure_name(), to_milliseconds(state.time));
 	log("\tspheres    registered %", state.spheres.count);
 	log("\ttetraeders registered %", state.tetraeder.count);
 	

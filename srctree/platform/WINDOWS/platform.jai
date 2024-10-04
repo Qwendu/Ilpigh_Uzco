@@ -49,7 +49,7 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 			priv : TOKEN_PRIVILEGES;
 			priv.PrivilegeCount = 1;
 			priv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-			if LookupPrivilegeValueW(null, utf8_to_wide(SE_LOCK_MEMORY_NAME), *priv.Privileges[0].Luid) // BAD WE ARE MIXING W and A
+			if LookupPrivilegeValueW(null, utf8_to_wide_new(SE_LOCK_MEMORY_NAME), *priv.Privileges[0].Luid) // BAD WE ARE MIXING W and A
 			{
 				AdjustTokenPrivileges(token, BOOL.FALSE, *priv, size_of(type_of(priv)), null,null);
 				if GetLastError() == 0
@@ -94,7 +94,7 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 			hIcon         = xx 0;
 			hCursor       = LoadCursorW(null, IDC_ARROW);
 			lpszMenuName  = null;
-			lpszClassName = utf8_to_wide(main_window.class_name);
+			lpszClassName = utf8_to_wide_new(main_window.class_name);
 		}
 
 		register_result := RegisterClassExW(*main_window.window_class);
@@ -120,8 +120,8 @@ create_Window :: (display_name : string, size : int2) -> *Window_Info #must
 		main_window.handle = CreateWindowExW
 		(
 			   dwExStyle     = xx extended_style
-			,  lpClassName   = utf8_to_wide(main_window.class_name)
-			,  lpWindowName  = utf8_to_wide(main_window.display_name)
+			,  lpClassName   = utf8_to_wide_new(main_window.class_name)
+			,  lpWindowName  = utf8_to_wide_new(main_window.display_name)
 			,  dwStyle       = xx style
 			,  x = CW_USEDEFAULT
 			,  y = CW_USEDEFAULT
@@ -233,7 +233,7 @@ load_Dynamic_Library :: (dll_name : string) -> *DLL
 	dll.name = sprint("%", dll_name);
 	file_name_original := tprint("%.dll", dll_name);
 	dll.file_name = sprint("%_tmp.dll", dll_name);
-	dll.file_name_utf16 = utf8_to_wide(dll.file_name);
+	dll.file_name_utf16 = utf8_to_wide_new(dll.file_name);
 	succ := copy_file(file_name_original, dll.file_name);
 	if !succ 
 	{
@@ -422,7 +422,7 @@ dump :: () #c_call
 	push_context,defer_pop ctx;
 	
 	path_of_crash_dump := sprint("./dumps/dump_%/", to_milliseconds(current_time_monotonic()));
-	if make_directory_if_it_does_not_exist(path_of_crash_dump)
+	if make_directory_if_it_does_not_exist(path_of_crash_dump, recursive = true)
 	{
 		
 		for functions_to_call_if_crash_occurs
@@ -431,10 +431,18 @@ dump :: () #c_call
 			{
 				file_builder : String_Builder;
 				file_name:= it(*log_file_builder, *file_builder);
-				write_entire_file(sprint("%/%", path_of_crash_dump, file_name), *file_builder);
+				file_path := sprint("%/%", path_of_crash_dump, file_name);
+				
+				success := write_entire_file(file_path, *file_builder);
+				if !success
+				{
+					log("Failed to write file '%'", file_path);
+				}
 			}
 		}
 		write_entire_file(sprint("%/log.txt", path_of_crash_dump), *log_file_builder);
+	}else{
+		log("Failed to create dump folder '%'", path_of_crash_dump);
 	}
 	context.allocator.proc(.SHUTDOWN, 0, 0,null,null);
 }
